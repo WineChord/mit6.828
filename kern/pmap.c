@@ -441,9 +441,8 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	// Fill this function in
 	physaddr_t pa = page2pa(pp); // physical addr of page 
 	pte_t *p = pgdir_walk(pgdir, va, 0); 
-	if (p != NULL && (*p & PTE_P)) { // already exists a map 
-		if (PTE_ADDR(*p) == pa) // the map is the same 
-			return 0; // done 
+	// already exists a map and the physical address mismatch 
+	if (p != NULL && (*p & PTE_P) && (PTE_ADDR(*p) != pa)) { 
 		page_remove(pgdir, va);
 		tlb_invalidate(pgdir, va);
 	}
