@@ -111,6 +111,23 @@ boot_alloc(uint32_t n)
 
 	return result;
 }
+/**
+ * Lab2 Question 2
+ * What entries (rows) in the page directory have been filled in at this point? 
+ * What addresses do they map and where do they point? 
+ * In other words, fill out this table as much as possible:
+ * 
+ Entry  Base Virtual Address  Points to (logically):
+ 1023   ?                Page table for top 4MB of phys memory
+ 1022   ?                ?
+ .      ?                ?
+ .      ?                ?
+ .      ?                ?
+ 2      0x00800000       ?
+ 1      0x00400000       ?
+ 0      0x00000000       [see next question]
+ * 
+ */
 
 // Set up a two-level page table:
 //    kern_pgdir is its linear (virtual) address of the root

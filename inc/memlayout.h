@@ -22,7 +22,7 @@
  * Virtual memory map:                                Permissions
  *                                                    kernel/user
  *
- *    4 Gig -------->  +------------------------------+                 --+
+ *    4 Gig -------->  +------------------------------+                 --+          PDE 1023 
  *                     |                              | RW/--             |
  *                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                   |
  *                     :              .               :                   |
@@ -32,9 +32,9 @@
  *                     |                              | RW/--             |
  *                     |   Remapped Physical Memory   | RW/--             |
  *                     |                              | RW/--             |
- *    KERNBASE, ---->  +------------------------------+ 0xf0000000      --+
+ *    KERNBASE, ---->  +------------------------------+ 0xf0000000      --+          PDE 960
  *    KSTACKTOP        |     CPU0's Kernel Stack      | RW/--  KSTKSIZE   |
- *                     | - - - - - - - - - - - - - - -|                   |
+ *                     | - - - - - - - - - - - - - - -|                   |          
  *                     |      Invalid Memory (*)      | --/--  KSTKGAP    |
  *                     +------------------------------+                   |
  *                     |     CPU1's Kernel Stack      | RW/--  KSTKSIZE   |
@@ -43,15 +43,15 @@
  *                     +------------------------------+                   |
  *                     :              .               :                   |
  *                     :              .               :                   |
- *    MMIOLIM ------>  +------------------------------+ 0xefc00000      --+
+ *    MMIOLIM ------>  +------------------------------+ 0xefc00000      --+          PDE 959 
  *                     |       Memory-mapped I/O      | RW/--  PTSIZE 4MB
- * ULIM, MMIOBASE -->  +------------------------------+ 0xef800000
- *                     |  Cur. Page Table (User R-)   | R-/R-  PTSIZE 4MB
- *    UVPT      ---->  +------------------------------+ 0xef400000
+ * ULIM, MMIOBASE -->  +------------------------------+ 0xef800000                   PDE 958
+ *                     |  Cur. Page Table (User R-)   | R-/R-  PTSIZE 4MB 
+ *    UVPT      ---->  +------------------------------+ 0xef400000                   PDE 957
  *                     |          RO PAGES            | R-/R-  PTSIZE 4MB
- *    UPAGES    ---->  +------------------------------+ 0xef000000
+ *    UPAGES    ---->  +------------------------------+ 0xef000000                   PDE 956 
  *                     |           RO ENVS            | R-/R-  PTSIZE 4MB
- * UTOP,UENVS ------>  +------------------------------+ 0xeec00000
+ * UTOP,UENVS ------>  +------------------------------+ 0xeec00000                   PDE 955
  * UXSTACKTOP -/       |     User Exception Stack     | RW/RW  PGSIZE 4KB
  *                     +------------------------------+ 0xeebff000
  *                     |       Empty Memory (*)       | --/--  PGSIZE 4KB
@@ -69,13 +69,13 @@
  *    UTEXT -------->  +------------------------------+ 0x00800000
  *    PFTEMP ------->  |       Empty Memory (*)       |        PTSIZE 4MB
  *                     |                              |
- *    UTEMP -------->  +------------------------------+ 0x00400000      --+
+ *    UTEMP -------->  +------------------------------+ 0x00400000      --+          PDE 1
  *                     |       Empty Memory (*)       |                   |
  *                     | - - - - - - - - - - - - - - -|                   |
  *                     |  User STAB Data (optional)   |                 PTSIZE 4MB
  *    USTABDATA ---->  +------------------------------+ 0x00200000        |
  *                     |       Empty Memory (*)       |                   |
- *    0 ------------>  +------------------------------+                 --+
+ *    0 ------------>  +------------------------------+                 --+          PDE 0
  *
  * (*) Note: The kernel ensures that "Invalid Memory" is *never* mapped.
  *     "Empty Memory" is normally unmapped, but user programs may map pages
