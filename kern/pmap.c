@@ -449,8 +449,9 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	p = pgdir_walk(pgdir, va, 1); 
 	if (p == NULL) // allocation fails 
 		return -E_NO_MEM;
+	if (PTE_ADDR(*p) != pa)
+		pp->pp_ref += 1; 
 	*p = pa | perm | PTE_P; 
-	pp->pp_ref += 1; 
 	return 0;
 }
 
