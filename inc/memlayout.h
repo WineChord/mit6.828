@@ -22,41 +22,41 @@
  * Virtual memory map:                                Permissions
  *                                                    kernel/user
  *
- *    4 Gig -------->  +------------------------------+
- *                     |                              | RW/--
- *                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *                     :              .               :
- *                     :              .               :
- *                     :              .               :
- *                     |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| RW/--
- *                     |                              | RW/--
- *                     |   Remapped Physical Memory   | RW/--
- *                     |                              | RW/--
+ *    4 Gig -------->  +------------------------------+                 --+
+ *                     |                              | RW/--             |
+ *                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                   |
+ *                     :              .               :                   |
+ *                     :              .               :                   |
+ *                     :              .               :                256 MB
+ *                     |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| RW/--             |
+ *                     |                              | RW/--             |
+ *                     |   Remapped Physical Memory   | RW/--             |
+ *                     |                              | RW/--             |
  *    KERNBASE, ---->  +------------------------------+ 0xf0000000      --+
  *    KSTACKTOP        |     CPU0's Kernel Stack      | RW/--  KSTKSIZE   |
  *                     | - - - - - - - - - - - - - - -|                   |
  *                     |      Invalid Memory (*)      | --/--  KSTKGAP    |
  *                     +------------------------------+                   |
  *                     |     CPU1's Kernel Stack      | RW/--  KSTKSIZE   |
- *                     | - - - - - - - - - - - - - - -|                 PTSIZE
+ *                     | - - - - - - - - - - - - - - -|                 PTSIZE 4MB
  *                     |      Invalid Memory (*)      | --/--  KSTKGAP    |
  *                     +------------------------------+                   |
  *                     :              .               :                   |
  *                     :              .               :                   |
  *    MMIOLIM ------>  +------------------------------+ 0xefc00000      --+
- *                     |       Memory-mapped I/O      | RW/--  PTSIZE
+ *                     |       Memory-mapped I/O      | RW/--  PTSIZE 4MB
  * ULIM, MMIOBASE -->  +------------------------------+ 0xef800000
- *                     |  Cur. Page Table (User R-)   | R-/R-  PTSIZE
+ *                     |  Cur. Page Table (User R-)   | R-/R-  PTSIZE 4MB
  *    UVPT      ---->  +------------------------------+ 0xef400000
- *                     |          RO PAGES            | R-/R-  PTSIZE
+ *                     |          RO PAGES            | R-/R-  PTSIZE 4MB
  *    UPAGES    ---->  +------------------------------+ 0xef000000
- *                     |           RO ENVS            | R-/R-  PTSIZE
+ *                     |           RO ENVS            | R-/R-  PTSIZE 4MB
  * UTOP,UENVS ------>  +------------------------------+ 0xeec00000
- * UXSTACKTOP -/       |     User Exception Stack     | RW/RW  PGSIZE
+ * UXSTACKTOP -/       |     User Exception Stack     | RW/RW  PGSIZE 4KB
  *                     +------------------------------+ 0xeebff000
- *                     |       Empty Memory (*)       | --/--  PGSIZE
+ *                     |       Empty Memory (*)       | --/--  PGSIZE 4KB
  *    USTACKTOP  --->  +------------------------------+ 0xeebfe000
- *                     |      Normal User Stack       | RW/RW  PGSIZE
+ *                     |      Normal User Stack       | RW/RW  PGSIZE 4KB
  *                     +------------------------------+ 0xeebfd000
  *                     |                              |
  *                     |                              |
@@ -67,12 +67,12 @@
  *                     |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
  *                     |     Program Data & Heap      |
  *    UTEXT -------->  +------------------------------+ 0x00800000
- *    PFTEMP ------->  |       Empty Memory (*)       |        PTSIZE
+ *    PFTEMP ------->  |       Empty Memory (*)       |        PTSIZE 4MB
  *                     |                              |
  *    UTEMP -------->  +------------------------------+ 0x00400000      --+
  *                     |       Empty Memory (*)       |                   |
  *                     | - - - - - - - - - - - - - - -|                   |
- *                     |  User STAB Data (optional)   |                 PTSIZE
+ *                     |  User STAB Data (optional)   |                 PTSIZE 4MB
  *    USTABDATA ---->  +------------------------------+ 0x00200000        |
  *                     |       Empty Memory (*)       |                   |
  *    0 ------------>  +------------------------------+                 --+
