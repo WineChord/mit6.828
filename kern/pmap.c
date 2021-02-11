@@ -180,6 +180,9 @@ mem_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
+	size_t envs_size = NENV * sizeof(struct Env);
+	envs = (struct Env *) boot_alloc(envs_size);
+	memset(envs, 0, envs_size);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -212,6 +215,7 @@ mem_init(void)
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
+	boot_map_region(kern_pgdir, UENVS, envs_size, PADDR(envs), PTE_U | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
