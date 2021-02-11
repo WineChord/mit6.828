@@ -459,6 +459,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	if (PTE_ADDR(*p) != pa)
 		pp->pp_ref += 1; 
 	*p = pa | perm | PTE_P; 
+	pgdir[PDX(va)] = pgdir[PDX(va)] | perm | PTE_P;
 	return 0;
 }
 
