@@ -373,7 +373,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	// Fill this function in
 	int pdx = PDX(va); // page directory index
 	pde_t *pde = &pgdir[pdx]; // page directory entry
-	if (!(*pde | PTE_P)) { // not present 
+	if (!(*pde & PTE_P)) { // not present 
 		if (create == false)
 			return NULL;
 		struct PageInfo* page = page_alloc(ALLOC_ZERO);
@@ -441,7 +441,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	// Fill this function in
 	physaddr_t pa = page2pa(pp); // physical addr of page 
 	pte_t *p = pgdir_walk(pgdir, va, 0); 
-	if (p != NULL && (*p | PTE_P)) { // already exists a map 
+	if (p != NULL && (*p & PTE_P)) { // already exists a map 
 		if (PTE_ADDR(*p) == pa) // the map is the same 
 			return 0; // done 
 		page_remove(pgdir, va);
