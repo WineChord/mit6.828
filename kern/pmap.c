@@ -54,6 +54,7 @@ i386_detect_memory(void)
 
 	cprintf("Physical memory: %uK available, base = %uK, extended = %uK\n",
 		totalmem, basemem, totalmem - basemem);
+    // Physical memory: 131072K available, base = 640K, extended = 130432K
 }
 
 
@@ -109,7 +110,6 @@ boot_alloc(uint32_t n)
 	// how to check whether we're out of memory? 
 
 	return result;
-
 }
 
 // Set up a two-level page table:
@@ -371,7 +371,22 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	int pdx = PDX(va); // page directory index
+	pde_t *pde = &pgdir[pdx]; // page directory entry
+	if (!(*pde | PTE_P)) { // not present 
+		if (create == false)
+			return NULL;
+		struct PageInfo* page = page_alloc(ALLOC_ZERO);
+		if (page == NULL) // allocation fails 
+			return NULL;
+		*pde = page2pa(page); // remember to update page dir entry
+		*pde = *pde | PTE_P; // mark as present 
+		*pde = *pde | PTE_W; // more permissive
+		page->pp_ref = 1;
+		return (pte_t *) page2kva(page) + PTX(va); // should return kva 
+	}
+	pte_t *p = (pte_t *) KADDR(PTE_ADDR(*pde));
+	return p + PTX(va);
 }
 
 //
@@ -389,6 +404,10 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	for (size_t i = 0; i < size/PGSIZE; i++) {
+		pte_t *p = pgdir_walk(pgdir, va+i*PGSIZE, 1);
+		*p = (pa + i*PGSIZE) | perm | PTE_P;
+	}
 }
 
 //
@@ -420,6 +439,19 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+	physaddr_t pa = page2pa(pp); // physical addr of page 
+	pte_t *p = pgdir_walk(pgdir, va, 0); 
+	if (p != NULL && (*p | PTE_P)) { // already exists a map 
+		if (PTE_ADDR(*p) == pa) // the map is the same 
+			return 0; // done 
+		page_remove(pgdir, va);
+		tlb_invalidate(pgdir, va);
+	}
+	p = pgdir_walk(pgdir, va, 1); 
+	if (p == NULL) // allocation fails 
+		return -E_NO_MEM;
+	*p = pa | perm | PTE_P; 
+	pp->pp_ref += 1; 
 	return 0;
 }
 
@@ -438,7 +470,12 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	return NULL;
+	pte_t *p = pgdir_walk(pgdir, va, 0); 
+	if (p == NULL || !(*p | PTE_P)) // not present 
+		return NULL;
+	if (pte_store != NULL)
+		*pte_store = p;
+	return pa2page(PTE_ADDR(*p));
 }
 
 //
@@ -460,6 +497,13 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+	pte_t **pte_store; 
+	struct PageInfo* p = page_lookup(pgdir, va, pte_store);
+	if (p == NULL) // no physical page at that address
+		return ;
+	tlb_invalidate(pgdir, va);
+	page_decref(p);
+	**pte_store = 0; 
 }
 
 //
