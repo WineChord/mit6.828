@@ -405,7 +405,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 {
 	// Fill this function in
 	for (size_t i = 0; i < size/PGSIZE; i++) {
-		pte_t *p = pgdir_walk(pgdir, va+i*PGSIZE, 1);
+		pte_t *p = pgdir_walk(pgdir, (void *)(va+i*PGSIZE), 1);
 		*p = (pa + i*PGSIZE) | perm | PTE_P;
 	}
 }
