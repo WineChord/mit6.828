@@ -471,7 +471,7 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
 	pte_t *p = pgdir_walk(pgdir, va, 0); 
-	if (p == NULL || !(*p | PTE_P)) // not present 
+	if (p == NULL || !(*p & PTE_P)) // not present 
 		return NULL;
 	if (pte_store != NULL)
 		*pte_store = p;
