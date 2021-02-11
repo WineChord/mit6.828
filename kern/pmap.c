@@ -381,7 +381,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			return NULL;
 		*pde = page2pa(page); // remember to update page dir entry
 		*pde = *pde | PTE_P; // mark as present 
-		*pde = *pde | PTE_W; // more permissive
+		*pde = *pde | PTE_W | PTE_U; // more permissive
 		page->pp_ref = 1;
 		return (pte_t *) page2kva(page) + PTX(va); // should return kva 
 	}
