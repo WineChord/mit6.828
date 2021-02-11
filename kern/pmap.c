@@ -317,7 +317,7 @@ page_init(void)
 	// page 0x114 stores kernel page directory 
 	// page 0x115-0x??? stores physical page state array (pages)
 	size_t pgn_start = EXTPHYSMEM/PGSIZE;
-	size_t pgn_end = ROUNDUP(PADDR(&pages[npages-1]+1), PGSIZE)/PGSIZE;
+	size_t pgn_end = ROUNDUP(PADDR(boot_alloc(0)), PGSIZE)/PGSIZE;
 	for (i = pgn_start; i < pgn_end; i++) {
 		pages[i].pp_ref = 1; 
 	}
