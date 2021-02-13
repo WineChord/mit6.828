@@ -277,8 +277,8 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
-	size_t start = ROUNDDOWN(va, PGSIZE);
-	size_t end = ROUNDUP(va+len, PGSIZE);
+	size_t start = (size_t) ROUNDDOWN(va, PGSIZE);
+	size_t end = (size_t) ROUNDUP(va+len, PGSIZE);
 
 	for (size_t i = start; i < end; i += PGSIZE) {
 		struct PageInfo *pp = page_alloc(0);
@@ -356,11 +356,11 @@ load_icode(struct Env *e, uint8_t *binary)
 	for ( ; ph < eph; ph++) {
 		if (ph->p_type == ELF_PROG_LOAD) {
 			// alloc physical pages for [ph->p_va,ph->p_va+ph->p_memsz)
-			region_alloc(e, ph->p_va, ph->p_memsz);
+			region_alloc(e, (void *)ph->p_va, ph->p_memsz);
 			// copy program section to p_va
-			memcpy(ph->p_va, binary+ph->p_offset, ph->p_filesz);
+			memcpy((void *)ph->p_va, (void *)(binary+ph->p_offset), ph->p_filesz);
 			// clear the rest of memory (.bss)
-			memset(ph->p_va+ph->p_filesz, 0, ph->p_memsz-ph->p_filesz);
+			memset((void *)(ph->p_va+ph->p_filesz), 0, ph->p_memsz-ph->p_filesz);
 		}
 	}
 	e->env_tf.tf_eip = ((struct Elf *)binary)->e_entry;
@@ -369,7 +369,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
-	region_alloc(e, USTACKTOP-PGSIZE, PGSIZE);
+	region_alloc(e, (void *)(USTACKTOP-PGSIZE), PGSIZE);
 
 	// resume cr3
 	lcr3(cr3);
@@ -516,8 +516,8 @@ env_run(struct Env *e)
 		e->env_status = ENV_RUNNING;
 		e->env_runs++;
 		lcr3(PADDR(e->env_pgdir));
-		env_pop_tf(&e->env_tf);
 	}
+	env_pop_tf(&e->env_tf);
 
 	// panic("env_run not yet implemented");
 }
