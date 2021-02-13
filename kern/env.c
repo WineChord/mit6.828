@@ -187,8 +187,7 @@ env_setup_vm(struct Env *e)
 	e->env_pgdir = (pde_t *) page2kva(p);
 	p->pp_ref = 1;
 	size_t offset = PDX(UTOP);
-	// user cannot read kern_pgdir directly, shoule read through UVPT
-	memcpy(e->env_pgdir+offset, (pde_t *)UVPT+offset, (NPDENTRIES-offset)*sizeof(pde_t));
+	memcpy(e->env_pgdir+offset, kern_pgdir+offset, (NPDENTRIES-offset)*sizeof(pde_t));
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
