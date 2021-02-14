@@ -83,24 +83,24 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
-	SETGATE(idt[T_DIVIDE ], 0, GD_KT, (uint32_t) (&t_divide ), 0); 
-	SETGATE(idt[T_DEBUG  ], 0, GD_KT, (uint32_t) (&t_debug  ), 0);   
-	SETGATE(idt[T_NMI    ], 0, GD_KT, (uint32_t) (&t_nmi    ), 0);   
-	SETGATE(idt[T_BRKPT  ], 0, GD_KT, (uint32_t) (&t_brkpt  ), 0);   
-	SETGATE(idt[T_OFLOW  ], 0, GD_KT, (uint32_t) (&t_oflow  ), 0);   
-	SETGATE(idt[T_BOUND  ], 0, GD_KT, (uint32_t) (&t_bound  ), 0);   
-	SETGATE(idt[T_ILLOP  ], 0, GD_KT, (uint32_t) (&t_illop  ), 0);   
-	SETGATE(idt[T_DEVICE ], 0, GD_KT, (uint32_t) (&t_device ), 0);   
-	SETGATE(idt[T_DBLFLT ], 0, GD_KT, (uint32_t) (&t_dblflt ), 0);   
-	SETGATE(idt[T_TSS    ], 0, GD_KT, (uint32_t) (&t_tss    ), 0);   
+	SETGATE(idt[T_DIVIDE ], 0, GD_KT, (uint32_t) (&t_divide ), 3); 
+	SETGATE(idt[T_DEBUG  ], 0, GD_KT, (uint32_t) (&t_debug  ), 3);   
+	SETGATE(idt[T_NMI    ], 0, GD_KT, (uint32_t) (&t_nmi    ), 3);   
+	SETGATE(idt[T_BRKPT  ], 0, GD_KT, (uint32_t) (&t_brkpt  ), 3);   
+	SETGATE(idt[T_OFLOW  ], 0, GD_KT, (uint32_t) (&t_oflow  ), 3);   
+	SETGATE(idt[T_BOUND  ], 0, GD_KT, (uint32_t) (&t_bound  ), 3);   
+	SETGATE(idt[T_ILLOP  ], 0, GD_KT, (uint32_t) (&t_illop  ), 3);   
+	SETGATE(idt[T_DEVICE ], 0, GD_KT, (uint32_t) (&t_device ), 3);   
+	SETGATE(idt[T_DBLFLT ], 0, GD_KT, (uint32_t) (&t_dblflt ), 3);   
+	SETGATE(idt[T_TSS    ], 0, GD_KT, (uint32_t) (&t_tss    ), 3);   
 	SETGATE(idt[T_SEGNP  ], 0, GD_KT, (uint32_t) (&t_segnp  ), 0);   
-	SETGATE(idt[T_STACK  ], 0, GD_KT, (uint32_t) (&t_stack  ), 0);   
-	SETGATE(idt[T_GPFLT  ], 0, GD_KT, (uint32_t) (&t_gpflt  ), 0);   
-	SETGATE(idt[T_PGFLT  ], 0, GD_KT, (uint32_t) (&t_pgflt  ), 0);   
-	SETGATE(idt[T_FPERR  ], 0, GD_KT, (uint32_t) (&t_fperr  ), 0);   
-	SETGATE(idt[T_ALIGN  ], 0, GD_KT, (uint32_t) (&t_align  ), 0);   
-	SETGATE(idt[T_MCHK   ], 0, GD_KT, (uint32_t) (&t_mchk   ), 0);   
-	SETGATE(idt[T_SIMDERR], 0, GD_KT, (uint32_t) (&t_simderr), 0);   
+	SETGATE(idt[T_STACK  ], 0, GD_KT, (uint32_t) (&t_stack  ), 3);   
+	SETGATE(idt[T_GPFLT  ], 0, GD_KT, (uint32_t) (&t_gpflt  ), 3);   
+	SETGATE(idt[T_PGFLT  ], 0, GD_KT, (uint32_t) (&t_pgflt  ), 3);   
+	SETGATE(idt[T_FPERR  ], 0, GD_KT, (uint32_t) (&t_fperr  ), 3);   
+	SETGATE(idt[T_ALIGN  ], 0, GD_KT, (uint32_t) (&t_align  ), 3);   
+	SETGATE(idt[T_MCHK   ], 0, GD_KT, (uint32_t) (&t_mchk   ), 3);   
+	SETGATE(idt[T_SIMDERR], 0, GD_KT, (uint32_t) (&t_simderr), 3);   
 
 	// Per-CPU setup 
 	trap_init_percpu();
