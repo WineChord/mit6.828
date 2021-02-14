@@ -193,14 +193,12 @@ trap_dispatch(struct Trapframe *tf)
 		monitor(tf);
 		break;
 	case T_SYSCALL:
-		int32_t r = syscall(tf->tf_regs.reg_eax, 
+		syscall(tf->tf_regs.reg_eax, 
 							tf->tf_regs.reg_edx,
 							tf->tf_regs.reg_ecx,
 							tf->tf_regs.reg_ebx,
 							tf->tf_regs.reg_edi,
 							tf->tf_regs.reg_esi);
-		if (r < 0)
-			panic("syscall: %e\n", r);
 		break;
 	default:
 		break;
