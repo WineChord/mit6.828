@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "pmap.h": "c"
+        "pmap.h": "c",
+        "trap.h": "c"
     }
 }
