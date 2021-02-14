@@ -77,6 +77,8 @@ void t_align  ();
 void t_mchk   ();
 void t_simderr();
 
+void t_syscall();
+
 void
 trap_init(void)
 {
@@ -101,6 +103,8 @@ trap_init(void)
 	SETGATE(idt[T_ALIGN  ], 0, GD_KT, (uint32_t) (&t_align  ), 3);   
 	SETGATE(idt[T_MCHK   ], 0, GD_KT, (uint32_t) (&t_mchk   ), 3);   
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, (uint32_t) (&t_simderr), 3);   
+
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, (uint32_t) (&t_syscall), 3);   
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -187,6 +191,16 @@ trap_dispatch(struct Trapframe *tf)
 		break;
 	case T_BRKPT:
 		monitor(tf);
+		break;
+	case T_SYSCALL:
+		int32_t r = syscall(tf->tf_regs.reg_eax, 
+							tf->tf_regs.reg_edx,
+							tf->tf_regs.reg_ecx,
+							tf->tf_regs.reg_ebx,
+							tf->tf_regs.reg_edi,
+							tf->tf_regs.reg_esi);
+		if (r < 0)
+			panic("syscall: %e\n", r);
 		break;
 	default:
 		break;
