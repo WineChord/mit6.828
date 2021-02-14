@@ -93,10 +93,10 @@ trap_init(void)
 	SETGATE(idt[T_DEVICE ], 0, GD_KT, (uint32_t) (&t_device ), 3);   
 	SETGATE(idt[T_DBLFLT ], 0, GD_KT, (uint32_t) (&t_dblflt ), 3);   
 	SETGATE(idt[T_TSS    ], 0, GD_KT, (uint32_t) (&t_tss    ), 3);   
-	SETGATE(idt[T_SEGNP  ], 0, GD_KT, (uint32_t) (&t_segnp  ), 0);   
+	SETGATE(idt[T_SEGNP  ], 0, GD_KT, (uint32_t) (&t_segnp  ), 3);   
 	SETGATE(idt[T_STACK  ], 0, GD_KT, (uint32_t) (&t_stack  ), 3);   
 	SETGATE(idt[T_GPFLT  ], 0, GD_KT, (uint32_t) (&t_gpflt  ), 3);   
-	SETGATE(idt[T_PGFLT  ], 0, GD_KT, (uint32_t) (&t_pgflt  ), 3);   
+	SETGATE(idt[T_PGFLT  ], 0, GD_KT, (uint32_t) (&t_pgflt  ), 0);   
 	SETGATE(idt[T_FPERR  ], 0, GD_KT, (uint32_t) (&t_fperr  ), 3);   
 	SETGATE(idt[T_ALIGN  ], 0, GD_KT, (uint32_t) (&t_align  ), 3);   
 	SETGATE(idt[T_MCHK   ], 0, GD_KT, (uint32_t) (&t_mchk   ), 3);   
