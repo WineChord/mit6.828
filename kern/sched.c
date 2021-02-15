@@ -32,7 +32,7 @@ sched_yield(void)
 	int i;
 	envid_t id;
 	if (thiscpu->cpu_env != NULL)
-		id = thiscpu->cpu_env->env_id;
+		id = ENVX(thiscpu->cpu_env->env_id);
 	else 
 		id = NENV-1;
 	for (i = (id+1)%NENV; i != id; i = (i+1)%NENV) {
@@ -52,6 +52,7 @@ sched_yield(void)
 void
 sched_halt(void)
 {
+	cprintf("enter sched_halt\n");
 	int i;
 
 	// For debugging and testing purposes, if there are no runnable
