@@ -9,6 +9,7 @@
         "assert.h": "c",
         "env.h": "c",
         "memlayout.h": "c",
-        "mmu.h": "c"
+        "mmu.h": "c",
+        "lib.h": "c"
     }
 }
