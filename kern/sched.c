@@ -30,7 +30,11 @@ sched_yield(void)
 
 	// LAB 4: Your code here.
 	int i;
-	envid_t id = thiscpu->cpu_env->env_id;
+	envid_t id;
+	if (thiscpu->cpu_env != NULL)
+		id = thiscpu->cpu_env->env_id;
+	else 
+		id = NENV-1;
 	for (i = (id+1)%NENV; i != id; i = (i+1)%NENV) {
 		if (envs[i].env_status == ENV_RUNNABLE)
 			break;
