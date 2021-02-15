@@ -10,6 +10,8 @@
         "env.h": "c",
         "memlayout.h": "c",
         "mmu.h": "c",
-        "lib.h": "c"
+        "lib.h": "c",
+        "console.h": "c",
+        "monitor.h": "c"
     }
 }
