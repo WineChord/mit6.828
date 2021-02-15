@@ -296,10 +296,10 @@ mem_init_mp(void)
 	size_t i;
 	uintptr_t va, kstacktop_i;
 	physaddr_t pa;
-	for (i = 0; i < ncpu; i++) {
+	for (i = 0; i < NCPU; i++) {
 		kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
 		va = kstacktop_i - KSTKSIZE;
-		pa = (physaddr_t) (&percpu_kstacks[i]);
+		pa = PADDR(&percpu_kstacks[i]);
 		boot_map_region(kern_pgdir, va, KSTKSIZE, pa, PTE_W);
 	}
 }
@@ -643,8 +643,9 @@ mmio_map_region(physaddr_t pa, size_t size)
 	if (base + sz > MMIOLIM)
 		panic("excedes MMIOLIM\n");
 	boot_map_region(kern_pgdir, base, sz, pa, PTE_W|PTE_PCD|PTE_PWT);
+	uintptr_t start = base;
 	base += sz;
-	return (void *)base;
+	return (void *)start;
 	// panic("mmio_map_region not implemented");
 }
 
