@@ -189,10 +189,10 @@ trap_dispatch(struct Trapframe *tf)
 	{
 	case T_PGFLT:
 		page_fault_handler(tf);
-		break;
+		return;
 	case T_BRKPT:
 		monitor(tf);
-		break;
+		return;
 	case T_SYSCALL:
 		r = syscall(tf->tf_regs.reg_eax, 
 							tf->tf_regs.reg_edx,
@@ -203,7 +203,7 @@ trap_dispatch(struct Trapframe *tf)
 		if (r < 0)
 			panic("syscall: %e\n", r);
 		curenv->env_tf.tf_regs.reg_eax = r;
-		break;
+		return;
 	default:
 		break;
 	}
