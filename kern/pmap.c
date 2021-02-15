@@ -337,7 +337,12 @@ page_init(void)
 	// The rest of base memory is free 
 	// page 1 to page 160 
 	// 0x7C00 is in page 7 (where bootloader starts)
+	size_t mpentry = MPENTRY_PADDR/PGSIZE;
 	for (i = 1; i < npages_basemem; i++) {
+		if (i == mpentry) {
+			pages[i].pp_ref = 1;
+			continue;
+		}
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
@@ -626,7 +631,13 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	size_t sz = ROUNDUP(size, PGSIZE);
+	if (base + sz > MMIOLIM)
+		panic("excedes MMIOLIM\n");
+	boot_map_region(kern_pgdir, base, sz, pa, PTE_W|PTE_PCD|PTE_PWT);
+	base += sz;
+	return base;
+	// panic("mmio_map_region not implemented");
 }
 
 static uintptr_t user_mem_check_addr;
