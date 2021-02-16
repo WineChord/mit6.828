@@ -380,7 +380,7 @@ page_fault_handler(struct Trapframe *tf)
 		env_destroy(curenv);
 	}
 
-	user_mem_assert(curenv, UXSTACKTOP-PGSIZE, PGSIZE, PTE_W);
+	user_mem_assert(curenv, (void *)UXSTACKTOP-PGSIZE, PGSIZE, PTE_W);
 
 	struct UTrapframe *p;
 
