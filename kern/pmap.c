@@ -682,7 +682,7 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 	size_t end = ROUNDUP((size_t)va+len, PGSIZE);
 	for (size_t i = start; i < end; i += PGSIZE) {
 		pte_t *p = pgdir_walk(env->env_pgdir, (void *)i, 0);
-		if (!((*p) & perm)) {
+		if ((p == NULL) || !((*p) & perm)) {
 			if (i < (size_t)va)
 				user_mem_check_addr = (uintptr_t)va;
 			else 

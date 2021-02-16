@@ -380,21 +380,22 @@ page_fault_handler(struct Trapframe *tf)
 		env_destroy(curenv);
 	}
 
-	user_mem_assert(curenv, (void *)UXSTACKTOP-PGSIZE, PGSIZE, PTE_W);
+	// user_mem_assert(curenv, (void *)UXSTACKTOP-PGSIZE, PGSIZE, PTE_W);
 
 	struct UTrapframe *p;
 
 	if (tf->tf_esp >= UXSTACKTOP-PGSIZE && tf->tf_esp < UXSTACKTOP) {
 		// esp is already on the user exception stack 
-		user_mem_assert(curenv, (void *)tf->tf_esp, sizeof(struct UTrapframe)+4, PTE_W);
-		tf->tf_esp += 4;
+		user_mem_assert(curenv, (void *)(tf->tf_esp-4-sizeof(struct UTrapframe)), sizeof(struct UTrapframe)+4, PTE_W);
+		tf->tf_esp -= 4;      // push 4 bytes
 		*((int32_t *)tf->tf_esp) = 0;
-		tf->tf_esp += sizeof(struct UTrapframe);
+		tf->tf_esp -= sizeof(struct UTrapframe);
 		p = (struct UTrapframe *)tf->tf_esp;
-		p->utf_esp = tf->tf_esp-sizeof(struct UTrapframe)-4;
+		p->utf_esp = tf->tf_esp+sizeof(struct UTrapframe)+4;
 	}
 	else {
 		p = (struct UTrapframe *)(UXSTACKTOP-sizeof(struct UTrapframe));
+		user_mem_assert(curenv, (void *)p, sizeof(struct UTrapframe), PTE_W);
 		p->utf_esp = tf->tf_esp;
 		tf->tf_esp = (uintptr_t)p;
 	}

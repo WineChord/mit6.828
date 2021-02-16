@@ -65,10 +65,12 @@ _pgfault_upcall:
 	// ways as registers become unavailable as scratch space.
 	//
 	// LAB 4: Your code here.
-	movl (%esp+4*10), %eax  // eip
-	subl $4, (%esp+4*12) 
-	movl (%esp+4*12), %edi 
-	movl %eax, (%edi) 
+	movl $10,%ebx
+	movl (%esp,%ebx,4), %eax  // eip
+	movl $12,%ebx
+	subl $4, (%esp,%ebx,4)  // esp=esp-4
+	movl (%esp,%ebx,4), %edi // store esp addr
+	movl %eax, (%edi) // push eip in trap stack
 
 
 	// Restore the trap-time registers.  After you do this, you
@@ -82,7 +84,7 @@ _pgfault_upcall:
 	// modifies eflags.
 	// LAB 4: Your code here.
 	addl $4, %esp // pop eip
-	popl %eflags
+	popfl
 
 	// Switch back to the adjusted trap-time stack.
 	// LAB 4: Your code here.
