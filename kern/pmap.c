@@ -644,7 +644,7 @@ mmio_map_region(physaddr_t pa, size_t size)
 		panic("excedes MMIOLIM\n");
 	boot_map_region(kern_pgdir, base, sz, pa, PTE_W|PTE_PCD|PTE_PWT);
 	base += sz;
-	return base;
+	return (void *)base;
 	// panic("mmio_map_region not implemented");
 }
 
