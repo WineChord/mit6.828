@@ -12,6 +12,7 @@
         "mmu.h": "c",
         "lib.h": "c",
         "console.h": "c",
-        "monitor.h": "c"
+        "monitor.h": "c",
+        "sched.h": "c"
     }
 }
