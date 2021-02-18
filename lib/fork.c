@@ -126,16 +126,17 @@ fork(void)
 	}
 	// we are the parent
 	int r;
-	size_t i;
-	for (i = 0; i < PGNUM(USTACKTOP); i++) {
-		// duppage will handle writable and cow page
-		// it'll also do the remap thing
+	uint8_t *addr;
+	extern unsigned char end[];
+	for (addr = (uint8_t*) UTEXT; addr < end; addr += PGSIZE) {
+		uintptr_t i = (uintptr_t)addr;
 		if (!((uvpd[i>>10]&PTE_P)&&(uvpt[i]&PTE_P)))
 			continue; 
-		r = duppage(eid, i);
-		if (r < 0)
-			panic("duppage: %e\n", r);
+		duppage(eid, addr);
 	}
+
+	// Also copy the stack we are currently running on.
+	duppage(eid, ROUNDDOWN(&addr, PGSIZE));
 	if ((r = sys_env_set_status(eid, ENV_RUNNABLE)) < 0)
 		panic("sys_env_set_status: %e\n", r);
 	return eid;
