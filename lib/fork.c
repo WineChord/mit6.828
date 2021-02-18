@@ -37,13 +37,16 @@ pgfault(struct UTrapframe *utf)
 
 	if (!((err&FEC_WR) && (uvpt[PGNUM(addr)]&PTE_COW))) 
 		panic("fault is not write to cow\n");
+	
+	void *va = (void *)(PGNUM(addr)<<PGSHIFT);
+
 	// allocate a new page, map it at PFTEMP (syscall 1)
 	if ((r = sys_page_alloc(0, (void *)PFTEMP, PTE_P|PTE_U|PTE_W)) < 0)
 		panic("sys_page_alloc: %e\n", r);
 	// copy the data from the old page to the new page 
-	memmove((void *)PFTEMP, addr, PGSIZE);
+	memmove((void *)PFTEMP, va, PGSIZE);
 	// move the new page to the old page's address (syscall 2)
-	if ((r = sys_page_map(0, (void *)PFTEMP, 0, addr, PTE_P|PTE_U|PTE_W)) < 0)
+	if ((r = sys_page_map(0, (void *)PFTEMP, 0, va, PTE_P|PTE_U|PTE_W)) < 0)
 		panic("sys_page_map: %e\n", r);
 	// unmap temp location (syscall 3)
 	if ((r = sys_page_unmap(0, (void *)PFTEMP)) < 0)
