@@ -127,7 +127,7 @@ fork(void)
 	for (i = 0; i < PGNUM(USTACKTOP); i++) {
 		// duppage will handle writable and cow page
 		// it'll also do the remap thing
-		if (!(uvpt[i]&PTE_P))
+		if (!((uvpd[i>>10]&PTE_P)&&(uvpt[i]&PTE_P)))
 			continue; 
 		r = duppage(eid, i);
 		if (r < 0)
