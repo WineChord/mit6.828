@@ -35,7 +35,7 @@ pgfault(struct UTrapframe *utf)
 	// LAB 4: Your code here.
 	// panic("pgfault not implemented");
 
-	if (!(err == FEC_WR && (uvpt[PGNUM(addr)]&PTE_COW))) 
+	if (!((err&FEC_WR) && (uvpt[PGNUM(addr)]&PTE_COW))) 
 		panic("fault is not write to cow\n");
 	// allocate a new page, map it at PFTEMP (syscall 1)
 	if ((r = sys_page_alloc(0, (void *)PFTEMP, PTE_P|PTE_U|PTE_W)) < 0)
@@ -43,7 +43,7 @@ pgfault(struct UTrapframe *utf)
 	// copy the data from the old page to the new page 
 	memmove((void *)PFTEMP, addr, PGSIZE);
 	// move the new page to the old page's address (syscall 2)
-	if ((r = sys_page_map(0, addr, 0, (void *)PFTEMP, PTE_P|PTE_U|PTE_W)) < 0)
+	if ((r = sys_page_map(0, (void *)PFTEMP, 0, addr, PTE_P|PTE_U|PTE_W)) < 0)
 		panic("sys_page_map: %e\n", r);
 	// unmap temp location (syscall 3)
 	if ((r = sys_page_unmap(0, (void *)PFTEMP)) < 0)
