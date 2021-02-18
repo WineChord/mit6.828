@@ -111,11 +111,11 @@ fork(void)
 {
 	// LAB 4: Your code here.
 	// panic("fork not implemented");
+	envid_t eid;
+	uint8_t *addr;
 	int r,i;
 	extern unsigned char end[];
-	uint8_t *addr;
 	set_pgfault_handler(pgfault);
-	envid_t eid;
 	eid = sys_exofork();
 	if (eid < 0) 
 		panic("sys_exofork: %e\n", eid);
@@ -126,7 +126,7 @@ fork(void)
 		return 0;
 	}
 	// we are the parent
-	for (addr = (uint8_t *) 0; addr < end; addr += PGSIZE) {
+	for (addr = (uint8_t *) UTEXT; addr < end; addr += PGSIZE) {
 		i = PGNUM(addr);
 		if (!((uvpd[i>>10]&PTE_P)&&(uvpt[i]&PTE_P)))
 			continue; 
@@ -135,12 +135,14 @@ fork(void)
 
 	// Also copy the stack we are currently running on.
 	duppage(eid, PGNUM(ROUNDDOWN(&addr, PGSIZE)));
+
 	r = sys_page_alloc(eid, (void *)(UXSTACKTOP-PGSIZE), PTE_P|PTE_U|PTE_W);
 	if (r < 0)
 		panic("sys_page_alloc: %e\n", r);
 	r = sys_env_set_pgfault_upcall(eid, _pgfault_upcall);
 	if (r < 0)
 		panic("sys_env_set_pgfault_upcall: %e\n", r);
+
 	if ((r = sys_env_set_status(eid, ENV_RUNNABLE)) < 0)
 		panic("sys_env_set_status: %e\n", r);
 	return eid;
