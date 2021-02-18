@@ -88,6 +88,8 @@ duppage(envid_t envid, unsigned pn)
 	return 0;
 }
 
+extern void _pgfault_upcall(void);
+
 //
 // User-level fork with copy-on-write.
 // Set up our page fault handler appropriately.
@@ -109,6 +111,9 @@ fork(void)
 {
 	// LAB 4: Your code here.
 	// panic("fork not implemented");
+	int r,i;
+	extern unsigned char end[];
+	uint8_t *addr;
 	set_pgfault_handler(pgfault);
 	envid_t eid;
 	eid = sys_exofork();
@@ -118,25 +123,24 @@ fork(void)
 		// we are the child 
 		// change thisenv
 		thisenv = &envs[ENVX(sys_getenvid())];
-		// set pgfault handler in child
-		// this will also alloc fresh page in user 
-		// exception stack 
-		set_pgfault_handler(pgfault);
 		return 0;
 	}
 	// we are the parent
-	int r;
-	uint8_t *addr;
-	extern unsigned char end[];
-	for (addr = (uint8_t*) UTEXT; addr < end; addr += PGSIZE) {
-		uintptr_t i = (uintptr_t)addr;
+	for (addr = (uint8_t *) 0; addr < end; addr += PGSIZE) {
+		i = PGNUM(addr);
 		if (!((uvpd[i>>10]&PTE_P)&&(uvpt[i]&PTE_P)))
 			continue; 
-		duppage(eid, addr);
+		duppage(eid, i);
 	}
 
 	// Also copy the stack we are currently running on.
-	duppage(eid, ROUNDDOWN(&addr, PGSIZE));
+	duppage(eid, PGNUM(ROUNDDOWN(&addr, PGSIZE)));
+	r = sys_page_alloc(eid, (void *)(UXSTACKTOP-PGSIZE), PTE_P|PTE_U|PTE_W);
+	if (r < 0)
+		panic("sys_page_alloc: %e\n", r);
+	r = sys_env_set_pgfault_upcall(eid, _pgfault_upcall);
+	if (r < 0)
+		panic("sys_env_set_pgfault_upcall: %e\n", r);
 	if ((r = sys_env_set_status(eid, ENV_RUNNABLE)) < 0)
 		panic("sys_env_set_status: %e\n", r);
 	return eid;
