@@ -33,8 +33,21 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
+	// panic("pgfault not implemented");
 
-	panic("pgfault not implemented");
+	if (!(err == FEC_WR && (uvpt[PGNUM(addr)]&PTE_COW))) 
+		panic("fault is not write to cow\n");
+	// allocate a new page, map it at PFTEMP (syscall 1)
+	if ((r = sys_page_alloc(0, (void *)PFTEMP, PTE_P|PTE_U|PTE_W)) < 0)
+		panic("sys_page_alloc: %e\n", r);
+	// copy the data from the old page to the new page 
+	memmove((void *)PFTEMP, addr, PGSIZE);
+	// move the new page to the old page's address (syscall 2)
+	if ((r = sys_page_map(0, addr, 0, (void *)PFTEMP, PTE_P|PTE_U|PTE_W)) < 0)
+		panic("sys_page_map: %e\n", r);
+	// unmap temp location (syscall 3)
+	if ((r = sys_page_unmap(0, (void *)PFTEMP)) < 0)
+		panic("sys_page_unmap: %e\n", r);
 }
 
 //
@@ -54,7 +67,21 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	// panic("duppage not implemented");
+	if ((uvpt[pn]&PTE_W) || (uvpt[pn]&PTE_COW)) {
+		void *pg = (void *)(pn*PGSIZE);
+		// why the order matters here?
+		if ((r = sys_page_map(0, pg, envid, pg, PTE_P|PTE_U|PTE_COW)) < 0)
+			panic("sys_page_map: %e\n", r);
+		// remap to cow as well 
+		if ((r = sys_page_map(0, pg, 0, pg, PTE_P|PTE_U|PTE_COW)) < 0)
+			panic("sys_page_map: %e\n", r);
+	} else if (uvpt[pn]&PTE_P) {
+		// only present: read-only
+		void *pg = (void *)(pn*PGSIZE);
+		if ((r = sys_page_map(0, pg, envid, pg, PTE_P|PTE_U)) < 0)
+			panic("sys_page_map: %e\n", r);
+	}
 	return 0;
 }
 
@@ -78,7 +105,37 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+	// panic("fork not implemented");
+	set_pgfault_handler(pgfault);
+	envid_t eid;
+	eid = sys_exofork();
+	if (eid < 0) 
+		panic("sys_exofork: %e\n", eid);
+	if (eid == 0) {
+		// we are the child 
+		// change thisenv
+		thisenv = &envs[ENVX(sys_getenvid())];
+		// set pgfault handler in child
+		// this will also alloc fresh page in user 
+		// exception stack 
+		set_pgfault_handler(pgfault);
+		return 0;
+	}
+	// we are the parent
+	int r;
+	size_t i;
+	for (i = 0; i < PGNUM(USTACKTOP); i++) {
+		// duppage will handle writable and cow page
+		// it'll also do the remap thing
+		if (!(uvpt[i]&PTE_P))
+			continue; 
+		r = duppage(eid, i);
+		if (r < 0)
+			panic("duppage: %e\n", r);
+	}
+	if ((r = sys_env_set_status(eid, ENV_RUNNABLE)) < 0)
+		panic("sys_env_set_status: %e\n", r);
+	return eid;
 }
 
 // Challenge!
