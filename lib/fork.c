@@ -149,9 +149,6 @@ fork(void)
 		duppage(eid, i);
 	}
 
-	// Also copy the stack we are currently running on.
-	// dduppage(eid, PGNUM(USTACKTOP-PGSIZE));
-
 	r = sys_page_alloc(eid, (void *)(UXSTACKTOP-PGSIZE), PTE_P|PTE_U|PTE_W);
 	if (r < 0)
 		panic("sys_page_alloc: %e\n", r);
