@@ -142,7 +142,7 @@ fork(void)
 		return 0;
 	}
 	// we are the parent
-	for (addr = (uint8_t *) 0; addr < (uint8_t *)(USTACKTOP-PGSIZE); addr += PGSIZE) {
+	for (addr = (uint8_t *) 0; addr < (uint8_t *)(USTACKTOP); addr += PGSIZE) {
 		i = PGNUM(addr);
 		if (!((uvpd[i>>10]&PTE_P)&&(uvpt[i]&PTE_P)))
 			continue; 
@@ -150,7 +150,7 @@ fork(void)
 	}
 
 	// Also copy the stack we are currently running on.
-	dduppage(eid, PGNUM(USTACKTOP-PGSIZE));
+	// dduppage(eid, PGNUM(USTACKTOP-PGSIZE));
 
 	r = sys_page_alloc(eid, (void *)(UXSTACKTOP-PGSIZE), PTE_P|PTE_U|PTE_W);
 	if (r < 0)

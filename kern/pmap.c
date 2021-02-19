@@ -528,17 +528,12 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
 	physaddr_t pa = page2pa(pp); // physical addr of page 
-	pte_t *p = pgdir_walk(pgdir, va, 0); 
-	// already exists a map and the physical address mismatch 
-	if (p != NULL && (*p & PTE_P) && (PTE_ADDR(*p) != pa)) { 
-		page_remove(pgdir, va);
-		tlb_invalidate(pgdir, va);
-	}
-	p = pgdir_walk(pgdir, va, 1); 
-	if (p == NULL) // allocation fails 
+	pte_t *p = pgdir_walk(pgdir, va, 1); 
+	if (p == NULL)
 		return -E_NO_MEM;
-	if (PTE_ADDR(*p) != pa)
-		pp->pp_ref += 1; 
+	pp->pp_ref++;
+	if ((*p) & PTE_P) 
+		page_remove(pgdir, va);
 	*p = pa | perm | PTE_P; 
 	pgdir[PDX(va)] = pgdir[PDX(va)] | perm | PTE_P;
 	return 0;
