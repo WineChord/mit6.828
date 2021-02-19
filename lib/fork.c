@@ -88,6 +88,22 @@ duppage(envid_t envid, unsigned pn)
 	return 0;
 }
 
+static int
+dduppage(envid_t envid, unsigned pn)
+{
+	int r;
+	void *addr = (void *)(pn*PGSIZE);
+	envid_t dstenv = envid;
+	if ((r = sys_page_alloc(dstenv, addr, PTE_P|PTE_U|PTE_W)) < 0)
+		panic("sys_page_alloc: %e", r);
+	if ((r = sys_page_map(dstenv, addr, 0, UTEMP, PTE_P|PTE_U|PTE_W)) < 0)
+		panic("sys_page_map: %e", r);
+	memmove(UTEMP, addr, PGSIZE);
+	if ((r = sys_page_unmap(0, UTEMP)) < 0)
+		panic("sys_page_unmap: %e", r);
+	return 0;
+}
+
 extern void _pgfault_upcall(void);
 
 //
@@ -134,7 +150,7 @@ fork(void)
 	}
 
 	// Also copy the stack we are currently running on.
-	duppage(eid, PGNUM(USTACKTOP-PGSIZE));
+	dduppage(eid, PGNUM(USTACKTOP-PGSIZE));
 
 	r = sys_page_alloc(eid, (void *)(UXSTACKTOP-PGSIZE), PTE_P|PTE_U|PTE_W);
 	if (r < 0)
