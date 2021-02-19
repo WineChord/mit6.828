@@ -161,10 +161,58 @@ fork(void)
 	return eid;
 }
 
+static int
+duppage0(envid_t envid, unsigned pn)
+{
+	int r;
+	void *pg = (void *)(pn*PGSIZE);
+	if (uvpt[pn]&PTE_W) {
+		if ((r = sys_page_map(0, pg, envid, pg, PTE_P|PTE_U|PTE_W)) < 0)
+			panic("sys_page_map: %e\n", r);
+	} else if (uvpt[pn]&PTE_P) {
+		// only present: read-only
+		if ((r = sys_page_map(0, pg, envid, pg, PTE_P|PTE_U)) < 0)
+			panic("sys_page_map: %e\n", r);
+	}
+	return 0;
+}
+
 // Challenge!
 int
 sfork(void)
 {
-	panic("sfork not implemented");
-	return -E_INVAL;
+	// panic("sfork not implemented");
+	envid_t eid;
+	uint8_t *addr;
+	int r,i;
+	extern unsigned char end[];
+	set_pgfault_handler(pgfault);
+	eid = sys_exofork();
+	if (eid < 0) 
+		panic("sys_exofork: %e\n", eid);
+	if (eid == 0) {
+		// we are the child 
+		// change thisenv
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+	// we are the parent
+	for (addr = (uint8_t *) 0; addr < (uint8_t *)(USTACKTOP-PGSIZE); addr += PGSIZE) {
+		i = PGNUM(addr);
+		if (!((uvpd[i>>10]&PTE_P)&&(uvpt[i]&PTE_P)))
+			continue; 
+		duppage0(eid, i);
+	}
+	duppage(eid, PGNUM(&addr));
+
+	r = sys_page_alloc(eid, (void *)(UXSTACKTOP-PGSIZE), PTE_P|PTE_U|PTE_W);
+	if (r < 0)
+		panic("sys_page_alloc: %e\n", r);
+	r = sys_env_set_pgfault_upcall(eid, _pgfault_upcall);
+	if (r < 0)
+		panic("sys_env_set_pgfault_upcall: %e\n", r);
+
+	if ((r = sys_env_set_status(eid, ENV_RUNNABLE)) < 0)
+		panic("sys_env_set_status: %e\n", r);
+	return eid;
 }
