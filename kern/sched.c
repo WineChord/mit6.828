@@ -52,7 +52,7 @@ sched_yield(void)
 void
 sched_halt(void)
 {
-	cprintf("enter sched_halt\n");
+	// cprintf("enter sched_halt\n");
 	int i;
 
 	// For debugging and testing purposes, if there are no runnable

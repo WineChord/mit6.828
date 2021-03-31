@@ -334,7 +334,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	r = envid2env(envid, &env, false);
 	if(r != 0)
 		return r;
-	if(env->env_ipc_recving == false || env->env_ipc_from != 0)
+	if(env->env_ipc_recving == false)// || env->env_ipc_from != 0)
 		return -E_IPC_NOT_RECV;
 	bool trans_flag = false;
 	if((uintptr_t)srcva < UTOP) {
@@ -352,7 +352,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		if((perm & PTE_W) && (*pte & PTE_W) == 0)
 			return -E_INVAL;
 		if(env->env_ipc_dstva != (void *)0) {
-			r = sys_page_map(curenv->env_id, srcva, envid, env->env_ipc_dstva, perm);
+			// r = sys_page_map(curenv->env_id, srcva, envid, env->env_ipc_dstva, perm);
+			r = page_insert(env->env_pgdir, p, env->env_ipc_dstva, perm);
 			if(r != 0)
 				return r;
 			trans_flag = true;
@@ -364,6 +365,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	if(trans_flag == true) 
 		env->env_ipc_perm = perm;
 	else env->env_ipc_perm = 0;
+	env->env_status = ENV_RUNNABLE;
+	env->env_tf.tf_regs.reg_eax = 0; 
 	return 0;
 }
 
@@ -413,7 +416,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	case SYS_env_destroy:
 		return sys_env_destroy((envid_t)a1);
 	case SYS_yield:
-		cprintf("syscall yield\n");
+		// cprintf("syscall yield\n");
 		sys_yield();
 		return 0;
 	case SYS_exofork:

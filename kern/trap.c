@@ -234,6 +234,7 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
 	int32_t r; 
+	uint32_t saved_syscall_num;
 	switch (tf->tf_trapno)
 	{
 	case T_PGFLT:
@@ -243,15 +244,19 @@ trap_dispatch(struct Trapframe *tf)
 		monitor(tf);
 		return;
 	case T_SYSCALL:
+		saved_syscall_num = tf->tf_regs.reg_eax;
+		// cprintf("before syscall num: %d\n", saved_syscall_num);
 		r = syscall(tf->tf_regs.reg_eax, 
 							tf->tf_regs.reg_edx,
 							tf->tf_regs.reg_ecx,
 							tf->tf_regs.reg_ebx,
 							tf->tf_regs.reg_edi,
 							tf->tf_regs.reg_esi);
-		if (r < 0)
-			panic("syscall: %e\n", r);
-		curenv->env_tf.tf_regs.reg_eax = r;
+		// cprintf("syscall num: %d, errno: %d\n", saved_syscall_num, r);
+		// if (r < 0)
+		//	panic("syscall: %e\n", r);
+		// curenv->env_tf.tf_regs.reg_eax = r;
+		tf->tf_regs.reg_eax = r;
 		return;
 	default:
 		break;
@@ -270,7 +275,7 @@ trap_dispatch(struct Trapframe *tf)
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
 	if(tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
-		cprintf("receive timer irq\n");
+		// cprintf("receive timer irq\n");
 		lapic_eoi();
 		sched_yield();
 		return;

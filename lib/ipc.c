@@ -26,7 +26,7 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 	// panic("ipc_recv not implemented");
 	int r;
 	if(pg == NULL)
-		r = sys_ipc_recv(ULIM);
+		r = sys_ipc_recv((void *)ULIM);
 	else r = sys_ipc_recv(pg);
 	if(r != 0) {
 		if(from_env_store != NULL)
@@ -59,11 +59,14 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 	int r;
 	for(;;) {
 		if(pg == NULL) 
-			r = sys_ipc_try_send(to_env, val, ULIM, perm);
+			r = sys_ipc_try_send(to_env, val, (void *)ULIM, perm);
 		else r = sys_ipc_try_send(to_env, val, pg, perm);
+		if(r == 0) break;
 		if(r == -E_IPC_NOT_RECV) 
 			sys_yield();
-		else panic("ipc_send error");
+		else 
+			panic("ipc_send error %d\n", -r);
+		
 	}
 }
 
