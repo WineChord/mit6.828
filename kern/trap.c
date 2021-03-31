@@ -84,6 +84,14 @@ void t_align  ();
 void t_mchk   ();
 void t_simderr();
 
+/* IRQ */ 
+void irq_timer   ();  /*   0 */
+void irq_kbd     ();  /*   1 */
+void irq_serial  ();  /*   4 */
+void irq_spurious();  /*   7 */
+void irq_ide     ();  /*  14 */
+void irq_error   ();  /*  19 */
+
 void t_syscall();
 
 void
@@ -92,26 +100,34 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
-	SETGATE(idt[T_DIVIDE ], 0, GD_KT, (uint32_t) (&t_divide ), 3); 
-	SETGATE(idt[T_DEBUG  ], 0, GD_KT, (uint32_t) (&t_debug  ), 3);   
-	SETGATE(idt[T_NMI    ], 0, GD_KT, (uint32_t) (&t_nmi    ), 3);   
-	SETGATE(idt[T_BRKPT  ], 0, GD_KT, (uint32_t) (&t_brkpt  ), 3);   
-	SETGATE(idt[T_OFLOW  ], 0, GD_KT, (uint32_t) (&t_oflow  ), 3);   
-	SETGATE(idt[T_BOUND  ], 0, GD_KT, (uint32_t) (&t_bound  ), 3);   
-	SETGATE(idt[T_ILLOP  ], 0, GD_KT, (uint32_t) (&t_illop  ), 3);   
-	SETGATE(idt[T_DEVICE ], 0, GD_KT, (uint32_t) (&t_device ), 3);   
-	SETGATE(idt[T_DBLFLT ], 0, GD_KT, (uint32_t) (&t_dblflt ), 3);   
-	SETGATE(idt[T_TSS    ], 0, GD_KT, (uint32_t) (&t_tss    ), 3);   
-	SETGATE(idt[T_SEGNP  ], 0, GD_KT, (uint32_t) (&t_segnp  ), 3);   
-	SETGATE(idt[T_STACK  ], 0, GD_KT, (uint32_t) (&t_stack  ), 3);   
-	SETGATE(idt[T_GPFLT  ], 0, GD_KT, (uint32_t) (&t_gpflt  ), 3);   
-	SETGATE(idt[T_PGFLT  ], 0, GD_KT, (uint32_t) (&t_pgflt  ), 0);   
-	SETGATE(idt[T_FPERR  ], 0, GD_KT, (uint32_t) (&t_fperr  ), 3);   
-	SETGATE(idt[T_ALIGN  ], 0, GD_KT, (uint32_t) (&t_align  ), 3);   
-	SETGATE(idt[T_MCHK   ], 0, GD_KT, (uint32_t) (&t_mchk   ), 3);   
-	SETGATE(idt[T_SIMDERR], 0, GD_KT, (uint32_t) (&t_simderr), 3);   
+	SETGATE(idt[T_DIVIDE ], 1, GD_KT, (uint32_t) (&t_divide ), 3); 
+	SETGATE(idt[T_DEBUG  ], 1, GD_KT, (uint32_t) (&t_debug  ), 3);   
+	SETGATE(idt[T_NMI    ], 1, GD_KT, (uint32_t) (&t_nmi    ), 3);   
+	SETGATE(idt[T_BRKPT  ], 1, GD_KT, (uint32_t) (&t_brkpt  ), 3);   
+	SETGATE(idt[T_OFLOW  ], 1, GD_KT, (uint32_t) (&t_oflow  ), 3);   
+	SETGATE(idt[T_BOUND  ], 1, GD_KT, (uint32_t) (&t_bound  ), 3);   
+	SETGATE(idt[T_ILLOP  ], 1, GD_KT, (uint32_t) (&t_illop  ), 3);   
+	SETGATE(idt[T_DEVICE ], 1, GD_KT, (uint32_t) (&t_device ), 3);   
+	SETGATE(idt[T_DBLFLT ], 1, GD_KT, (uint32_t) (&t_dblflt ), 3);   
+	SETGATE(idt[T_TSS    ], 1, GD_KT, (uint32_t) (&t_tss    ), 3);   
+	SETGATE(idt[T_SEGNP  ], 1, GD_KT, (uint32_t) (&t_segnp  ), 3);   
+	SETGATE(idt[T_STACK  ], 1, GD_KT, (uint32_t) (&t_stack  ), 3);   
+	SETGATE(idt[T_GPFLT  ], 1, GD_KT, (uint32_t) (&t_gpflt  ), 3);   
+	SETGATE(idt[T_PGFLT  ], 1, GD_KT, (uint32_t) (&t_pgflt  ), 0);   
+	SETGATE(idt[T_FPERR  ], 1, GD_KT, (uint32_t) (&t_fperr  ), 3);   
+	SETGATE(idt[T_ALIGN  ], 1, GD_KT, (uint32_t) (&t_align  ), 3);   
+	SETGATE(idt[T_MCHK   ], 1, GD_KT, (uint32_t) (&t_mchk   ), 3);   
+	SETGATE(idt[T_SIMDERR], 1, GD_KT, (uint32_t) (&t_simderr), 3);   
 
-	SETGATE(idt[T_SYSCALL], 0, GD_KT, (uint32_t) (&t_syscall), 3);   
+	/* // Hardware IRQ numbers. We receive these as (IRQ_OFFSET+IRQ_WHATEVER) */
+	SETGATE(idt[IRQ_OFFSET+IRQ_TIMER   ], 0, GD_KT, (uint32_t)(&irq_timer   ), 3);  /*   0 */
+	SETGATE(idt[IRQ_OFFSET+IRQ_KBD     ], 0, GD_KT, (uint32_t)(&irq_kbd     ), 3);  /*   1 */
+	SETGATE(idt[IRQ_OFFSET+IRQ_SERIAL  ], 0, GD_KT, (uint32_t)(&irq_serial  ), 3);  /*   4 */
+	SETGATE(idt[IRQ_OFFSET+IRQ_SPURIOUS], 0, GD_KT, (uint32_t)(&irq_spurious), 3);  /*   7 */
+	SETGATE(idt[IRQ_OFFSET+IRQ_IDE     ], 0, GD_KT, (uint32_t)(&irq_ide     ), 3);  /*  14 */
+	SETGATE(idt[IRQ_OFFSET+IRQ_ERROR   ], 0, GD_KT, (uint32_t)(&irq_error   ), 3);  /*  19 */
+
+	SETGATE(idt[T_SYSCALL], 1, GD_KT, (uint32_t) (&t_syscall), 3);   
 
 	// Per-CPU setup 
 	trap_init_percpu();

@@ -13,6 +13,7 @@
         "lib.h": "c",
         "console.h": "c",
         "monitor.h": "c",
-        "sched.h": "c"
+        "sched.h": "c",
+        "picirq.h": "c"
     }
 }
