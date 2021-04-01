@@ -68,7 +68,7 @@ alloc_block(void)
 		if(block_is_free(blkno)) {
 			bitmap[blkno/32] &= ~(1<<(blkno%32));
 			uint32_t bitmapblkno = 2 + blkno / BLKBITSIZE;
-			flush_block(bitmapblkno);
+			flush_block(diskaddr(bitmapblkno));
 			return blkno;
 		}
 	return -E_NO_DISK;
