@@ -1,0 +1,19 @@
+{
+    "files.associations": {
+        "pmap.h": "c",
+        "trap.h": "c",
+        "syscall.h": "c",
+        "x86.h": "c",
+        "error.h": "c",
+        "string.h": "c",
+        "assert.h": "c",
+        "env.h": "c",
+        "memlayout.h": "c",
+        "mmu.h": "c",
+        "lib.h": "c",
+        "console.h": "c",
+        "monitor.h": "c",
+        "sched.h": "c",
+        "picirq.h": "c"
+    }
+}
