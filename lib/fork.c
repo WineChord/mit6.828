@@ -71,7 +71,11 @@ duppage(envid_t envid, unsigned pn)
 
 	// LAB 4: Your code here.
 	// panic("duppage not implemented");
-	if ((uvpt[pn]&PTE_W) || (uvpt[pn]&PTE_COW)) {
+	if(uvpt[pn]&PTE_SHARE) {
+		void *pg = (void *)(pn*PGSIZE);
+		if((r = sys_page_map(0, pg, envid, pg, PTE_SYSCALL)) < 0)
+			panic("sys_page_map: %e\n", r);
+	} else if ((uvpt[pn]&PTE_W) || (uvpt[pn]&PTE_COW)) {
 		void *pg = (void *)(pn*PGSIZE);
 		// why the order matters here?
 		if ((r = sys_page_map(0, pg, envid, pg, PTE_P|PTE_U|PTE_COW)) < 0)
