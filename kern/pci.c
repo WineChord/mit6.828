@@ -253,6 +253,8 @@ static int
 pci_init_attach(struct pci_func *f) 
 {
 	pci_func_enable(f);
+	e1000va = mmio_map_region((physaddr_t)f->reg_base[0], f->reg_size[0]);
+	cprintf("device status register: %08x\n", e1000va[8]);
 	return 0;
 }
 
