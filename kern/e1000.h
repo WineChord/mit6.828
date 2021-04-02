@@ -2,7 +2,9 @@
 #define JOS_KERN_E1000_H
 
 #include <kern/pmap.h> // mmio_map_region
+#include <kern/pci.h>
 #include <inc/error.h>
+#include <inc/string.h> // memcpy
 
 #define E1000_DEV_ID_82540EM             0x100E
 #define E1000_VEND_ID_82540EM            0x8086
@@ -17,6 +19,7 @@
 #define E1000_TDT      0x03818  /* TX Descripotr Tail - RW */
 
 /* Transmit Descriptor bit definitions */
+#define E1000_TXD_CMD_RS     0x08000000 /* Report Status */
 #define E1000_TXD_STAT_DD    0x00000001 /* Descriptor Done */
 
 #define E1000_TCTL_EN     0x00000002    /* enable tx */
@@ -54,5 +57,7 @@ struct tx_buf
 
 struct tx_desc *tx_descs; 
 
+static int
+pci_init_attach(struct pci_func *f);
 
 #endif  // SOL >= 6
