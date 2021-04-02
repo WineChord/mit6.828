@@ -3,7 +3,7 @@
 
 // LAB 6: Your driver code here
 
-void tx_init()
+int tx_init()
 {
 	// 1. allocate a region of memory for the transmit descriptor list
 	struct PageInfo *p = page_alloc(ALLOC_ZERO);
@@ -48,6 +48,7 @@ void tx_init()
 	// section 13.4.34 for the IEEE 802.3 standard IPG (don't use the values in the table in section 14.5).
 	// IPGR2: 6   IPGR1: 4    IPGT: 10
 	e1000va[E1000_TIPG/4] = 10; 
+	return 0;
 }
 
 int 
@@ -55,16 +56,19 @@ tx_data(char *buf, size_t len)
 {
     if(len > TXBUFLEN)  
         return -E_TXBUF_EXCEED; 
-    uint32_t tail = e1000va[E1000_TDT/4];
+    int tail = e1000va[E1000_TDT/4];
     if(tx_descs[tail].status & E1000_TXD_STAT_DD)
         return -E_TXQUEUE_FULL;
-    memcpy(((struct tx_buf *)tx_descs[tail].addr)->buf, buf, len);
-    tx_descs[tail].status = E1000_TXD_CMD_RS; 
-    e1000va[E1000_TDT/4] = tail+1;
+    uint32_t dst = (uint32_t)tx_descs[tail].addr;
+    memcpy((void *)KADDR(dst), buf, len);
+    tx_descs[tail].status &= ~0x01; 
+    tx_descs[tail].length = len;
+    tx_descs[tail].cmd |= 0x09; 
+    e1000va[E1000_TDT/4] = (tail+1)%NTXDESC;
     return 0;
 }
 
-static int
+int
 pci_init_attach(struct pci_func *f) 
 {
 	pci_func_enable(f);

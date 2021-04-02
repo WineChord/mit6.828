@@ -57,7 +57,7 @@ struct tx_buf
 
 struct tx_desc *tx_descs; 
 
-static int
+int
 pci_init_attach(struct pci_func *f);
 
 #endif  // SOL >= 6
