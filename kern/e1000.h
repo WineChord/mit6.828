@@ -16,6 +16,9 @@
 #define E1000_TDH      0x03810  /* TX Descriptor Head - RW */
 #define E1000_TDT      0x03818  /* TX Descripotr Tail - RW */
 
+/* Transmit Descriptor bit definitions */
+#define E1000_TXD_STAT_DD    0x00000001 /* Descriptor Done */
+
 #define E1000_TCTL_EN     0x00000002    /* enable tx */
 #define E1000_TCTL_PSP    0x00000008    /* pad short packets */
 #define E1000_TCTL_CT     0x00000ff0    /* collision threshold */
