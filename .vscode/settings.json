@@ -17,6 +17,7 @@
         "picirq.h": "c",
         "e1000.h": "c",
         "pcireg.h": "c",
-        "pci.h": "c"
+        "pci.h": "c",
+        "ns.h": "c"
     }
 }
