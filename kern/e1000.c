@@ -61,9 +61,9 @@ tx_data(char *buf, size_t len)
         return -E_TXQUEUE_FULL;
     uint32_t dst = (uint32_t)tx_descs[tail].addr;
     memcpy((void *)KADDR(dst), buf, len);
-    tx_descs[tail].status &= ~0x01; 
+    tx_descs[tail].status &= ~E1000_TXD_STAT_DD; 
     tx_descs[tail].length = len;
-    tx_descs[tail].cmd |= 0x09; 
+    tx_descs[tail].cmd |= E1000_TXD_CMD_RS|E1000_TXD_CMD_EOP; 
     e1000va[E1000_TDT/4] = (tail+1)%NTXDESC;
     return 0;
 }
@@ -79,7 +79,11 @@ pci_init_attach(struct pci_func *f)
 	cprintf("device status register: %08x\n", e1000va[E1000_STATUS/4]);
 	// start transmit initialization
     tx_init();
-    char buf[] = "this is a data package\n";
-    tx_data(buf, strlen(buf));
+    char buf[15];
+    for (int i = 0; i < NTXDESC+2; i++) {
+        snprintf(buf, 10, "no.%d\n", i);
+        int r = tx_data(buf, strlen(buf));
+        cprintf("status %d: %d\n", i, r);
+    }
 	return 0;
 }
