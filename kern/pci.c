@@ -15,7 +15,7 @@ static uint32_t pci_conf1_data_ioport = 0x0cfc;
 
 // Forward declarations
 static int pci_bridge_attach(struct pci_func *pcif);
-static void pci_func_enable(struct pci_func *pcif);
+static int pci_init_attach(struct pci_func *pcif);
 
 // PCI driver table
 struct pci_driver {
@@ -25,7 +25,7 @@ struct pci_driver {
 
 // pci_attach_class matches the class and subclass of a PCI device
 struct pci_driver pci_attach_class[] = {
-	{ PCI_CLASS_BRIDGE, PCI_SUBCLASS_BRIDGE_PCI, &pci_bridge_attach },
+	{ PCI_CLASS_BRIDGE, PCI_SUBCLASS_BRIDGE_PCI, &pci_init_attach },
 	{ 0, 0, 0 },
 };
 
@@ -247,6 +247,13 @@ pci_func_enable(struct pci_func *f)
 	cprintf("PCI function %02x:%02x.%d (%04x:%04x) enabled\n",
 		f->bus->busno, f->dev, f->func,
 		PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id));
+}
+
+static int
+pci_init_attach(struct pci_func *f) 
+{
+	pci_func_enable(f);
+	return 0;
 }
 
 int
