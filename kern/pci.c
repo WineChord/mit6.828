@@ -254,7 +254,10 @@ pci_init_attach(struct pci_func *f)
 {
 	pci_func_enable(f);
 	e1000va = mmio_map_region((physaddr_t)f->reg_base[0], f->reg_size[0]);
-	cprintf("device status register: %08x\n", e1000va[8]);
+	// To test your mapping, try printing out the device status register (section 13.4.2). 
+	// This is a 4 byte register that starts at byte 8 of the register space. 
+	// You should get 0x80080783, which indicates a full duplex link is up at 1000 MB/s, among other things.
+	cprintf("device status register: %08x\n", e1000va[8/4]);
 	return 0;
 }
 
