@@ -59,6 +59,7 @@ tx_data(char *buf, size_t len)
     int tail = e1000va[E1000_TDT/4];
     if(tx_descs[tail].status & E1000_TXD_STAT_DD)
         return -E_TXQUEUE_FULL;
+    cprintf("transmitting %s\n", buf);
     uint32_t dst = (uint32_t)tx_descs[tail].addr;
     memcpy((void *)KADDR(dst), buf, len);
     tx_descs[tail].status &= ~E1000_TXD_STAT_DD; 
@@ -90,5 +91,6 @@ pci_init_attach(struct pci_func *f)
 	cprintf("device status register: %08x\n", e1000va[E1000_STATUS/4]);
 	// start transmit initialization
     tx_init();
+	//tx_test();
 	return 0;
 }

@@ -126,5 +126,5 @@ sys_time_msec(void)
 int 
 sys_net_tx(char *buf, size_t len)
 {
-	return (unsigned int) syscall(SYS_net_tx, (uint32_t)buf, len, 0, 0, 0, 0);
+	return (unsigned int) syscall(SYS_net_tx, 0, (uint32_t)buf, len, 0, 0, 0);
 }
