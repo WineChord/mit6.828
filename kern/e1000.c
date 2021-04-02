@@ -68,6 +68,17 @@ tx_data(char *buf, size_t len)
     return 0;
 }
 
+void 
+tx_test()
+{
+    char buf[15];
+    for (int i = 0; i < NTXDESC+2; i++) {
+        snprintf(buf, 10, "no.%d\n", i);
+        int r = tx_data(buf, strlen(buf));
+        cprintf("status %d: %d\n", i, r);
+    }
+}
+
 int
 pci_init_attach(struct pci_func *f) 
 {
@@ -79,11 +90,5 @@ pci_init_attach(struct pci_func *f)
 	cprintf("device status register: %08x\n", e1000va[E1000_STATUS/4]);
 	// start transmit initialization
     tx_init();
-    char buf[15];
-    for (int i = 0; i < NTXDESC+2; i++) {
-        snprintf(buf, 10, "no.%d\n", i);
-        int r = tx_data(buf, strlen(buf));
-        cprintf("status %d: %d\n", i, r);
-    }
 	return 0;
 }

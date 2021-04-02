@@ -8,6 +8,10 @@ umain(int argc, char **argv)
 
 	binaryname = "icode";
 
+	cprintf("test user transmit data\n");
+	char buf[] = "this is a message from user\n";
+	sys_net_tx(buf, sizeof(buf));
+
 	cprintf("icode startup\n");
 
 	cprintf("icode: open /motd\n");

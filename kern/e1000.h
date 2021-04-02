@@ -75,7 +75,8 @@ struct tx_buf
 
 struct tx_desc *tx_descs; 
 
-int
-pci_init_attach(struct pci_func *f);
+int pci_init_attach(struct pci_func *f);
+
+int tx_data(char *buf, size_t len);
 
 #endif  // SOL >= 6
