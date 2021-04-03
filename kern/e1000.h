@@ -58,6 +58,9 @@
 #define E1000_RDH      0x02810  /* RX Descriptor Head - RW */
 #define E1000_RDT      0x02818  /* RX Descriptor Tail - RW */
 
+/* Receive Address */
+#define E1000_RAH_AV  0x80000000        /* Receive descriptor valid */
+
 /* Receive Control */
 #define E1000_RCTL_RST            0x00000001    /* Software reset */
 #define E1000_RCTL_EN             0x00000002    /* enable */
@@ -100,8 +103,10 @@
 #define E1000_RCTL_FLXBUF_MASK    0x78000000    /* Flexible buffer size */
 #define E1000_RCTL_FLXBUF_SHIFT   27            /* Flexible buffer shift */
 
-#define MAC_LOW   0x52540012  
-#define MAC_HIGH  0x3456
+// #define MAC_LOW   0x52540012  
+// #define MAC_HIGH  0x3456
+#define MAC_LOW   0x12005452
+#define MAC_HIGH  0x5634
 
 
 struct tx_desc

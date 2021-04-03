@@ -88,7 +88,7 @@ rx_init()
     // Ethernet controller. This can come from the EEPROM or from any other means (for example, on
     // some machines, this comes from the system PROM not the EEPROM on the adapter port).
     e1000va[E1000_RAL/4] = MAC_LOW;
-    e1000va[E1000_RAH/4] = MAC_HIGH;
+    e1000va[E1000_RAH/4] = MAC_HIGH | E1000_RAH_AV;
     // 2. Initialize the MTA (Multicast Table Array) to 0b. Per software, entries can be added to this table as
     // desired.
     e1000va[E1000_MTA/4] = 0;
@@ -123,7 +123,7 @@ rx_init()
         rx_descs[i].addr = PADDR(&rx_bufs[i]);
     }
     e1000va[E1000_RDH/4] = 0; // index 
-    e1000va[E1000_RDT/4] = 0; 
+    e1000va[E1000_RDT/4] = RXDESCSIZE-1; 
     // 8. Program the Receive Control (RCTL) register with appropriate values for desired operation to
     // include the following:
     // • Set the receiver Enable (RCTL.EN) bit to 1b for normal operation. However, it is best to leave
@@ -156,6 +156,8 @@ rx_init()
     // e1000va[E1000_RCTL/4] |= E1000_RCTL_LPE; 
     // normal loop back mode
     e1000va[E1000_RCTL/4] |= E1000_RCTL_LBM_NO;
+    // set broadcast accept mode
+    e1000va[E1000_RCTL/4] |= E1000_RCTL_BAM;
     // configure receive buffer size 
     e1000va[E1000_RCTL/4] |= E1000_RCTL_SZ_2048;
     // strip ethernet CRC 
