@@ -30,14 +30,19 @@ input(envid_t ns_envid)
 	// sys_page_alloc(ns_envid, &nsipcbuf, PTE_SYSCALL);
 	// int len=1518;
 	int len=2048;
-	char mbuf[len];
+	// char mbuf[len];
 	int r;
+	// The statement below is used to trigger page fault handler
+	// for copy-on-write in user mode. If we pass the jp_data
+	// address directly to kernel, the page fault in kernel
+	// mode is uncoverable. 
+	nsipcbuf.pkt.jp_len = len; 
 	for(;;) {
-		// r = sys_net_rx(nsipcbuf.pkt.jp_data, len);
-		r = sys_net_rx(mbuf, len);
+		r = sys_net_rx(nsipcbuf.pkt.jp_data, len);
+		// r = sys_net_rx(mbuf, len);
 		if(r == -E_RXQUEUE_EMPTY)
 			continue;
-		memcpy(nsipcbuf.pkt.jp_data, mbuf, r);
+		// memcpy(nsipcbuf.pkt.jp_data, mbuf, r);
 		nsipcbuf.pkt.jp_len = r;
 		ipc_send(ns_envid, NSREQ_INPUT, &nsipcbuf, PTE_U|PTE_W|PTE_P);
 		sleep(50);
