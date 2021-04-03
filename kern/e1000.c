@@ -175,8 +175,9 @@ rx_data(char *buf, size_t len)
     physaddr_t pa = rx_descs[idx].addr;
     int res = rx_descs[idx].length;
     res = MIN(res, len);
-    memcpy(buf, KADDR(pa), res);
-    rx_descs[idx].status &= ~E1000_RXD_STAT_DD;
+    //memcpy(buf, rx_bufs[idx], res);
+    memcpy(buf, (void *)(KADDR(pa)), res);
+    //rx_descs[idx].status &= ~E1000_RXD_STAT_DD;
     e1000va[E1000_RDT/4] = idx;
     return res;
 }

@@ -133,9 +133,8 @@
 #define E1000_RXD_SPC_CFI_MASK  0x1000  /* CFI is bit 12 */
 #define E1000_RXD_SPC_CFI_SHIFT 12
 
-#define MAC_LOW   0x52540012  
-#define MAC_HIGH  0x3456
->>>>>>> 789a4c78a9f085c8f2c2865e525d8e822d30c9d9
+#define MAC_LOW   0x12005452
+#define MAC_HIGH  0x5634
 
 
 struct tx_desc
