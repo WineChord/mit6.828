@@ -441,6 +441,13 @@ sys_net_tx(char *buf, size_t len)
 	return tx_data(buf, len);
 }
 
+static int 
+sys_net_rx(char *buf, size_t len)
+{
+	user_mem_assert(curenv, buf, len, PTE_U);
+	return rx_data(buf, len);
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -487,6 +494,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_time_msec();
 	case SYS_net_tx:
 		return sys_net_tx((char *)a1, a2);
+	case SYS_net_rx:
+		return sys_net_rx((char *)a1, a2);
 	default:
 		return -E_INVAL;
 	}

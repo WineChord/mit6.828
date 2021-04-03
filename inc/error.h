@@ -29,6 +29,8 @@ enum {
 	E_TXBUF_EXCEED, // transmission buffer exceeded
 	E_TXQUEUE_FULL, // transmission queue full
 
+	E_RXQUEUE_EMPTY, // receive queue empty
+
 	MAXERROR
 };
 

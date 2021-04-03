@@ -37,6 +37,7 @@ static const char * const error_string[MAXERROR] =
 	[E_NOT_SUPP]	= "operation not supported",
 	[E_TXBUF_EXCEED]= "transmission buffer exceeded",
 	[E_TXQUEUE_FULL]= "transmission queue full",
+	[E_RXQUEUE_EMPTY] = "receive queue empty",
 };
 
 /*
