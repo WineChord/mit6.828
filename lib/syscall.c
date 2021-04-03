@@ -128,3 +128,9 @@ sys_net_tx(char *buf, size_t len)
 {
 	return (unsigned int) syscall(SYS_net_tx, 0, (uint32_t)buf, len, 0, 0, 0);
 }
+
+int 
+sys_net_rx(char *buf, size_t len)
+{
+	return (unsigned int) syscall(SYS_net_rx, 0, (uint32_t)buf, len, 0, 0, 0);
+}
