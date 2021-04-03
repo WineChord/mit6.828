@@ -14,9 +14,10 @@ output(envid_t ns_envid)
 	int perm, r;
 	for(;;) {
 		r = ipc_recv(&env, &nsipcbuf, &perm);
-		if(r != 0) continue;
-		r = sys_net_tx(nsipcbuf.pkt.jp_data, nsipcbuf.pkt.jp_len);
-		if(r == -E_TXQUEUE_FULL)
-			cprintf("tx queue full\n");
+		do {
+			r = sys_net_tx(nsipcbuf.pkt.jp_data, nsipcbuf.pkt.jp_len);
+			if(r == -E_TXQUEUE_FULL)
+				cprintf("tx queue full\n");
+		}while(r == -E_TXQUEUE_FULL);
 	}
 }

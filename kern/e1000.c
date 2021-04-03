@@ -15,7 +15,7 @@ int tx_init()
 	for(int i = 0; i < NTXDESC; i++) {
 		tx_descs[i].addr = PADDR(&tx_bufs[i]);
 		// tx_descs[i].cmd = 0;
-		// tx_descs[i].status |= E1000_TXD_STAT_DD;
+		tx_descs[i].status |= E1000_TXD_STAT_DD;
 	}
 	// 3. Program the Transmit Descriptor Base Address 
 	// (TDBAL/TDBAH) register(s) with the address of the region. 
@@ -57,7 +57,7 @@ tx_data(char *buf, size_t len)
     if(len > TXBUFLEN)  
         return -E_TXBUF_EXCEED; 
     int tail = e1000va[E1000_TDT/4];
-    if(tx_descs[tail].status & E1000_TXD_STAT_DD)
+    if(!(tx_descs[tail].status & E1000_TXD_STAT_DD))
         return -E_TXQUEUE_FULL;
     cprintf("transmitting %s\n", buf);
     uint32_t dst = (uint32_t)tx_descs[tail].addr;
