@@ -237,8 +237,13 @@ send_file(struct http_request *req)
 
 	// LAB 6: Your code here.
 	// panic("send_file not implemented");
+	fd = open(req->url, O_RDONLY);
+	if(fd < 0) {
+		send_error(req, 404);
+		goto end;
+	}
 	struct Stat statbuf;
-	r = stat(req->url, &statbuf);
+	r = fstat(fd, &statbuf);
 	if(r < 0 || statbuf.st_isdir) {
 		send_error(req, 404);
 		goto end;
