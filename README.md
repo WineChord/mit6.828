@@ -334,8 +334,463 @@ The rest of `mem_init`:
 7. Configure more flags in cr0
 ```c
 	cr0 = rcr0();
+    //               Alignment Mask  Numeric Error  Monitor co-processor
 	cr0 |= CR0_PE|CR0_PG|CR0_AM|CR0_WP|CR0_NE|CR0_MP;
 	cr0 &= ~(CR0_TS|CR0_EM);
 	lcr0(cr0);
 ```
+
+## Lab3 User Environment 
+
+### User Environment and Exception Handling 
+
+jos's environment is similar to process in a modern operating system. The structure to describe each environment is as follows:
+```c
+struct Env {
+	struct Trapframe env_tf;	// Saved registers
+	struct Env *env_link;		// Next free Env
+	envid_t env_id;			// Unique environment identifier
+	envid_t env_parent_id;		// env_id of this env's parent
+	enum EnvType env_type;		// Indicates special system environments
+	unsigned env_status;		// Status of the environment
+	uint32_t env_runs;		// Number of times environment has run
+	int env_cpunum;			// The CPU that the env is running on
+
+	// Address space
+	pde_t *env_pgdir;		// Kernel virtual address of page dir
+
+	// Exception handling
+	void *env_pgfault_upcall;	// Page fault upcall entry point
+
+	// Lab 4 IPC
+	bool env_ipc_recving;		// Env is blocked receiving
+	void *env_ipc_dstva;		// VA at which to map received page
+	uint32_t env_ipc_value;		// Data value sent to us
+	envid_t env_ipc_from;		// envid of the sender
+	int env_ipc_perm;		// Perm of page mapping received
+};
+```
+__Note:__ jos's `struct Env` is analogous to `struct proc` in xv6. Both structures hold the environment's user-mode register state in a `Trapframe` structure. In jos, inidividual environment do not have their own kernel stacks as processes do in xv6. There can be only one jos environment active in the kernel at a time, so jos needs only a single kernel stack. (So if we can have multiple processes truly simultaneously running on different cores, we should provide kernel stack for each process. When will that stack be needed? Besides, jos implements multi-processor, so it still can only run one process in the kernel at a time?).
+
+Creating and Running Environments:
+
+* `env_init`: Mark all environments in `envs` as free, set their `env_ids` to 0, and insert them into the `env_free_list`. (purpose: form `env_free_list`).
+* `env_setup_vm(struct Env *e)`: Initialize the kernel virtual memory layout for environment e. Allocate a page directory, set `e->env_pgdir` accordingly, and initialize the kernel portion of the new environment's address space. This will not map anything into the user portion. Steps:
+    1. Allocate a page for the page directory using `page_alloc`
+    2. Set `e->env_pgdir`: `e->env_pgdir = (pde_t *)page2kva(p)`
+    3. Initialize the page directory. Use `kern_pgdir` as a template. The virtual address space of all envs is identical above `UTOP` except at `UVPT`. `UVPT` should map the env's own page table: `e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;`
+* `env_alloc(struct Env **newenv_store, envid_t parent_id)`: Allocates and initializes a new environment. Steps:
+    1. Grab a `struct Env *` from `env_free_list`: `e=env_free_list`. After the allocation is done, at the end of funtion it will be committed: `env_free_list=e->env_link`. 
+    2. Allocate and set up the page directory for this environment using `env_setup_vm` (this will initialize the kernel virtual memory layout for environment `e`). 
+    3. Generate an `env_id` for this environment. An environment ID `envid_t` has three parts:
+    ```c
+    // +1+---------------21-----------------+--------10--------+
+    // |0|          Uniqueifier             |   Environment    |
+    // | |                                  |      Index       |
+    // +------------------------------------+------------------+
+    //                                       \--- ENVX(eid) --/
+    ```
+    `ENVX(eid)` = the environment's index in the `envs[]` array. The uniqueifier distinguishes environments that were created at different times, but share the same environment index. `envid_t == 0` stands for the current environment. 
+    4. Set the basic status variables: `env_parent_id, env_type, env_status, env_runs`.
+    5. Clear out all the saved register state, to prevent the register values of a prior environment inhabiting this `Env` structure from "leaking" into this new environment: `memset(&e->env_tf, 0, sizeof(e->env_tf);`
+    6. Set up appropriate initial values for the segment registers. `GD_UD` is the user data segment selector in the GDT, `GD_UT` is the user text segment selector. The low 2 bits of each segment register contains the Requestor Privilege Level (RPL), 3 means user mode. When switching privilege levels, the hardware does various checks involving the RPL and the Descriptor Privilege Level (DPL) stored in the descriptors themselves. The Current Privilege Level (CPL) is stored in the lowest 2 bits of the code segment selector (CS). Access to a segment is allowed only if CPL <= DPL and RPL <= DPL. `e->env_tf.tf_ds/es/ss` is initialized to `GD_UD|3`. `e->env_tf.tf_cs` is initialized to `GD_UT|3`. `e->env_tf.tf_esp` is initialized to `USTACKTOP`. `tf_eip` is initialized later after loading the binary image. 
+    7. (lab4) Enable interrupts while in user mode. `tf_eflags|=FL_IF`
+    8. Clear the page fault handler until user installs one. `env_pgfault_upcall=0`
+    9. Clear the IPC receiving flag. `env_ipc_recving=0`
+    10. Commit the allocation. `env_free_list=e->env_link; *newenv_store=e;`
+
+
+> __Notes:__
+> * RPL (Requested Privilege Level): low 2 bits of each segment register.
+> * CPL (Current Privilege Level): low 2 bits of the code segment selector.
+> * DPL (Descriptor Privilege Level): stored in the descriptor.
+>
+> Accessing a segment requires CPL <= DPL and RPL <= DPL.
+> 
+> [https://stackoverflow.com/questions/36617718/difference-between-dpl-and-rpl-in-x86](https://stackoverflow.com/questions/36617718/difference-between-dpl-and-rpl-in-x86)
+> > An application would ordinarily not be able to access the memory in segment X (because CPL > DPL). But depending on how the system call was implemented, an application might be able to invoke the system call with a parameter of an address within segment X. Then, because the system call is privileged, it would be able to write to segment X on behalf of the application. This could introduce a privilege escalation vulnerability into the operating system.
+> > 
+> > To mitigate this, the official recommendation is that when a privileged routine accepts a segment selector provided by unprivileged code, it should first set the RPL of the segment selector to match that of the unprivileged code3. This way, the operating system would not be able to make any accesses to that segment that the unprivileged caller would not already be able to make. This helps enforce the boundary between the operating system and applications.
+> > 
+> > Currently:
+> > 
+> > Segment protection was introduced with the 286, before paging existed in the x86 family of processors. Back then, segmentation was the only way to restrict access to kernel memory from a user-mode context. RPL provided a convenient way to enforce this restriction when passing pointers across different privilege levels.
+> > 
+> > Modern operating systems use paging to restrict access to memory, which removes the need for segmentation. Since we don't need segmentation, we can use a flat memory model, which means segment registers CS, DS, SS, and ES all have a base of zero and extend through the entire address space. In fact, in 64-bit "long mode", a flat memory model is enforced, regardless of the contents of those four segment registers. Segments are still used sometimes (for example, Windows uses FS and GS to point to the Thread Information Block and 0x23 and 0x33 to switch between 32- and 64-bit code, and Linux is similar), but you just don't go passing segments around anymore. So RPL is mostly an unused leftover from older times.
+
+* `region_alloc(struct Env *e, void *va, size_t len)`: Allocate len bytes of physical memory for environment `e`, and map it at virtual address `va` in the environment's address space. Steps:
+    1. Calculate the page-aligned start and end virtual address.
+    2. Loop through the pages of virtual address, use `page_alloc` to allocate physical page and use `page_insert` to insert the physical page at the corresponding virtual address.
+* `load_icode(struct Env *e, uint8_t *binary)`: Set up the initial program binary, stack, and processor flags for a user process. This function is only called during kernel initialization, before running the first user-mode environment. It loads all loadable segments from the ELF binary image into the environment's user memory, starting at the appropriate virtual addresses indicated in the ELF program header. At the same time it clears the `.bss` section. This is very similar to what the boot loader does, except that the boot loader also needs to read the code from disk. Finally the function maps one page for the program's initial stack. Steps:
+    1. Switch to environment page directory so that the virtual address translation of user address space can take effect. (first you should save the `cr3` in order to resume it at the end of the function because we still need to run in kernel address space after calling this function). 
+    2. The begining of `binary` is ELF header. Get number of program headers from the ELF header. Loop through the headers. When is program header is of type `ELF_PROG_LOAD`, allocate physical pages for the virtual address region specified in this program header and copy the program section to virtual address, clear the `.bss` if exists. 
+    3. Set `env_tf.tf_eip` to ELF header's `e_entry`.
+    4. Now we have load the `.text, .data, .bss` segments of the program into memory (physically backed virtual address (although in modern linux, only the virtual address is allocated, virtual to physical mapping will only be created via page fault(????))). For the user portion of the address space, we still need to setup the stack area.
+    5. Map one page for the program's initial stack at virtual address `USTACKTOP-PGSIZE`:
+    ```c
+    region_alloc(e, (void *)(USTACKTOP-PGSIZE), PGSIZE);
+    ```
+    6. Resume `cr3` 
+* `env_create(uint8_t *binary, enum EnvType type)`: Allocate a new env with `env_alloc`, loads the named elf binary into it with `load_icode`, and sets its `env_type`. This function is only called during kernel initialization, before running the first user-mode environment. The new `env`'s parent ID is set to 0. Steps:
+    1. Allocate a new env using `env_alloc` (this will initialize the kernel virtual address space, set up its registers, etc.)
+    2. Call `load_icode` to load the binary into the environment's address space (this will also set up the `eip` register for the environment).
+    3. Set it `EnvType`
+    4. (lab5 fs) if this is the file server (type == ENV_TYPE_FS) give it IO privileges. 
+* `env_free(struct Env *e)`: Frees env `e` and all memory it uses. Steps:
+    1. If freeing the current environment, switch to `kern_pgdir` before freeing the page directory using `lcr3(PADDR(kern_pgdir))`.
+    2. Flush all mapped pages in the user portion of the address space. 
+        1. Loop through all the page directory entries below `UTOP`
+        2. if it is mapped (`PTE_P` is on for the page directory entry) 
+            1. find the physical and virtual address for the page table.
+            2. unmap all the page table entries in this page table using `page_remove`.
+            3. free the page table itself (`page_decref`).
+    3. Free the page directory (`page_decref`).
+    4. Return the environment to the free list. 
+* `env_destroy(struct Env *e)`: Frees environment `e`. If `e` was the current `env`, then runs a new environment (and does not return to the caller)
+    1. If `e` is currently running on other CPUs, change its state to `ENV_DYING`. A zombie environment will be freed the next time it traps to the kernel. 
+    2. Call `env_free` to free env and all memory it uses. 
+    3. If the env is current environment, call `sched_yield`(lab4, will choose a user environment to run and run it).
+* `env_run(struct Env *e)`: Context switch from `curenv` to env `e`. If this is the first call to `env_run`, `curenv` is NULL.
+    1. If this is a context switch (a new environment is running):
+        1. Set the current environment (if any) back to `ENV_RUNNABLE` if it is `ENV_RUNNING`.
+        2. Set `curenv` to the new environment
+        3. Set its status to `ENV_RUNNING`
+        4. Increment its `env_runs` counter
+        5. Use `lcr3` to switch to its address space 
+    2. Use `env_pop_tf` to restore the environment's state from `e->env_tf`.
+* `env_pop_tf(struct Trapframe *tf)`: Restores the register values in the Trapframe with the `iret` instruction. This exits the kernel and starts executing some environment's code. This function does not return. 
+
+
+Interrupt and Exception Handling:
+
+* `trap_init`: inside `kern/init.c` function `i386_init`, called after `env_init`. It initialize the IDT with the addresses of the corresponding interrupt handlers. Each of the handlers should build a `struct Trapframe` on the stack and call `trap` with a pointer to the Trapframe. `trap` then handles the exception/interrupt or dispatches to a specific handler function. 
+    1. Use `SETGATE` macro the set up interrupt/trap gate descriptor. Some examples are:
+    ```c
+    SETGATE(idt[T_DIVIDE ], 0, GD_KT, (uint32_t) (&t_divide ), 0); 
+	SETGATE(idt[T_DEBUG  ], 0, GD_KT, (uint32_t) (&t_debug  ), 0);   
+	SETGATE(idt[T_NMI    ], 0, GD_KT, (uint32_t) (&t_nmi    ), 0);   
+    ```
+    `T_*` is the trap numbers defined in `inc/trap.h` and `t_*` are functions declared in this scope, defined in `kern/trapentry.S`, for example:
+    ```asm
+    TRAPHANDLER_NOEC(t_divide , T_DIVIDE ) /*  0)		// divide error */
+    TRAPHANDLER_NOEC(t_debug  , T_DEBUG  ) /*  1)		// debug exception */
+    TRAPHANDLER_NOEC(t_nmi    , T_NMI    ) /*  2)		// non-maskable interrupt */
+    //...
+    TRAPHANDLER(     t_dblflt , T_DBLFLT ) /*  8)		// double fault */
+    ```
+    `TRAPHANDLER` defines a globally-visible function for handling a trap. It pushed a trap number onto the stack, then jumps to `_alltraps`. This will be used for traps where the CPU automatically pushes an error code. `TRAPHANDLER_NOEC` is used for traps where the CPU doesn't push an error code. It pushes a 0 in place of the error code, so the trap frame has the same format in either case. 
+    The definition of `_alltraps` is:
+    ```asm
+    _alltraps:
+    	pushl %ds;
+    	pushl %es;
+    	pusha;
+    	movw $GD_KD, %ax;
+    	movw %ax, %ds;
+    	movw $GD_KD, %ax;
+    	movw %ax, %es;
+    	pushl %esp;
+    	call trap;
+    ```
+    2. Initiate per-cpu setup using `trap_init_percpu`. This will initialize and load the per-CPU TSS (Task State Segment) and IDT.
+        1. Setup a TSS so that we get the right stack when we trap to the kernel. 
+        ```c
+	    size_t i = thiscpu->cpu_id;
+	    thiscpu->cpu_ts.ts_esp0 = KSTACKTOP - i*(KSTKSIZE+KSTKGAP);
+	    thiscpu->cpu_ts.ts_ss0 = GD_KD;
+	    thiscpu->cpu_ts.ts_iomb = sizeof(struct Taskstate); // io map base address
+        ```
+        2. Initialize the TSS slot of the gdt. 
+        ```c
+	    gdt[(GD_TSS0 >> 3)+i] = SEG16(STS_T32A, (uint32_t) (&thiscpu->cpu_ts),
+	    				sizeof(struct Taskstate) - 1, 0);
+	    gdt[(GD_TSS0 >> 3)+i].sd_s = 0; // 0 for system, 1 for application
+        ```
+        3. Load the TSS selector (the bottom 3 bits are left 0)
+        ```c
+	    ltr(GD_TSS0+(i<<3)); // ltr means load task register 
+        ```
+        4. Load the IDT
+        ```c
+        lidt(&idt_pd);
+        ```
+
+> The purpose of having an individual handler function for each exception/interrupt: To push the corresponding error code onto the stack. This is used for the codes going to handle it further like `trap_dispatch` to distinguish the interrupts.
+> 
+> If user calls `int $14` directly which corresponds to the kernel's page fault handler, but this will produce interrupt vector 13. This is to provide permission control or isolation. For each interrupt handler, we can define it whether can be triggered by a user program or not. So that we can ensure user programs would not interfere with the kernel. 
+
+> __Notes:__ Exceptions and interrupts are both _protected control transfers_, which cause the processor to switch from user to kernel mode(CPL=0) without giving the user-mode code any opportunity to interfere with the functioning of the kernel or other environments. In Intel's terminology, an _interrupt_ is a protected control trasfer that is caused by an asynchronous event usually external to the processor, such as notification of external device I/O activity. An _exception_, in contrast, is a protected control transfer caused synchronously by the currently running code, for example due to a divide by zero or an invalid memory access.
+>
+> In order to ensure that these protected control transfers are actually _protected_, the processor's interrupt/exception mechanism is designed so that the code currently running when the interrupt or exception occurs _does not get to choose arbitrarily where the kernel is entered or how_. Instead, the processor ensures that the kernel can be entered only under carefally controlled conditions. On the x86, two mechanisms work together to provide this protection:
+>
+> 1. The Interrupt Descriptor Table. The processor ensures that interrupts and exceptions can only cause the kernel to be entered at a few specific, well-defined entry-points _determined by the kernel itself_, and not by the code running when the interrupt or exception is taken. The x86 allows up to 256 different interrupt or exception entry points into the kernel, each with a different _interrupt vector_. A vector is a number between 0 and 255. An interrupt's vector is determined by the source of the interrupt: different devices, error conditions, and application requests to the kernel generate interrupts with different vectors. The CPU uses the vector as an index into the processor's _interrupt descriptor table_(IDT), which the kernel sets up in kernel-private memory, much like the GDT. From the appropriate entry in this table the processor loads: `EIP` and `CS`(includes in bits 0-1 the privilege level at which the exception handler is to run.). 
+> 2. The Task State Segment. The processor needs a place to save the _old_ processor state before the interrupt or exception occurred, such as the original values of `EIP` and `CS` before the processor invoked the exception handler, so that the exception handler can later restore that old state and resume the interrupted code from where it left off. _But this save area for the old processor state must in turn be protected from unprivileged user-mode code; otherwise buggy or malicious user code could compromise the kernel._ For this reason, when an x86 processor takes an interrupt or trap that causes a privilege level change from user to kernel mode, it also switches to a stack in the kernel's memory. A structure called the _task state segment_(TSS) specifies the segment selector and address where this stack lives. The processor pushes (on this new stack) `SS, ESP, EFLAGS, CS, EIP`, and an optional error code. Then it loads the `CS` and `EIP` from the interrupt descriptor, and sets the `ESP` and `SS` to refer to the new stack. Although the TSS is large and can potentially serve a variety of purposes, jos only uses it to define the kernel stack that the processor should switch to when it transfers from user to kernel mode. Since 'kernel mode' in jos is privilege level 0 on the x86, the processor uses the `ESP0` and `SS0` fields of the TSS to define the kernel stack when entering kernel mode. 
+> 
+> Types of Exceptions and Interrupts:
+>
+> All of the synchronous exceptions that the x86 processor can generate internally use interrupt vector between 0 and 31, and therefore map to IDT entries 0-31. Interrupt vectors greater than 31 are only used by _software interrupts_, which can be generated by the `int` instruction, or asynchronous _hardware interrupts_, caused by external devices when they need attention. 
+>
+> Example:
+> 
+> The control flow when a divide by zero exception happened in user mode:
+>
+> 1. The processor switches to the stack defined by the `SS0` and `ESP0` fields of the TSS, which in jos will hold values `GD_KD` and `KSTACKTOP`, respectively.
+> 2. The processor pushes the exception parameters on the kernel stack, starting at address `KSTACKTOP`:
+>   ```
+>                        +--------------------+ KSTACKTOP             
+>                        | 0x00000 | old SS   |     " - 4
+>                        |      old ESP       |     " - 8
+>                        |     old EFLAGS     |     " - 12
+>                        | 0x00000 | old CS   |     " - 16
+>                        |      old EIP       |     " - 20 <---- ESP 
+>                        +--------------------+  
+>   ```
+> 3. Divide error is interrupt vector 0 on the x86, the processor reads IDT entry 0 and set `CS:EIP` to point to the handler function described by the entry.
+> 4. The handler function takes control and handles the exception, for example by terminating the user environment. 
+>
+> For certain types of x86 exceptions, in addition to the 'standard' five words above, the processor pushes onto the stack another word containing an _error code_. The page fault exception, number 14, is an important example. 
+>   ```
+>                        +--------------------+ KSTACKTOP             
+>                        | 0x00000 | old SS   |     " - 4
+>                        |      old ESP       |     " - 8
+>                        |     old EFLAGS     |     " - 12
+>                        | 0x00000 | old CS   |     " - 16
+>                        |      old EIP       |     " - 20
+>                        |     error code     |     " - 24 <---- ESP
+>                        +--------------------+             
+>   ```
+> 
+> The Trapframe structure:
+>   ```c
+>   struct Trapframe {
+>   	struct PushRegs tf_regs;
+>   	uint16_t tf_es;
+>   	uint16_t tf_padding1;
+>   	uint16_t tf_ds;
+>   	uint16_t tf_padding2;
+>   	uint32_t tf_trapno;
+>   	/* below here defined by x86 hardware */
+>   	uint32_t tf_err;
+>   	uintptr_t tf_eip;
+>   	uint16_t tf_cs;
+>   	uint16_t tf_padding3;
+>   	uint32_t tf_eflags;
+>   	/* below here only when crossing rings, such as from user to kernel */
+>   	uintptr_t tf_esp;
+>   	uint16_t tf_ss;
+>   	uint16_t tf_padding4;
+>   } __attribute__((packed));
+>   ```
+> 
+> Nested Exceptions and Interrupts
+> 
+> The processor can take exceptions and interrupts both from kernel and user mode. It is only when entering the kernel from user mode, however, that the x86 processor automatically switches stacks before pushing its old register state onto the stack and invoking the appropriate exception handler through the IDT. If the processor is _already_ in kernel mode when the interrupt or exception occurs (the low 2 bits of the `CS` register are already zero), then the CPU just pushes more values on the same kernel stack. In this way, the kernel can gracefully handle _nested exceptions_ caused by code within the kernel itself. If the processor is already in kernel mode and takes a nested exception, since it does not need to switch stacks, it does not save the old `SS` or `ESP` registers. For exception types that do not push an error code, the kernel stack therefore looks like the following on entry to the exception handler:
+>   ```
+>                        +--------------------+ <---- old ESP
+>                        |     old EFLAGS     |     " - 4
+>                        | 0x00000 | old CS   |     " - 8
+>                        |      old EIP       |     " - 12
+>                        +--------------------+      
+>   ```
+> There is one important caveat to the processor's nested exception capability. If the processor takes an exception while already in kernel mode, and _cannot push its old state onto the kernel stack_ for any reason such as lack of stack space, then there is nothing the processor can do to recover, so it simply resets itself. Needless to say, the kernel should be designed so that this can't happen. 
+
+> Control flow for IDT:
+>   ```
+>         IDT                   trapentry.S         trap.c
+>      
+>   +----------------+                        
+>   |   &handler1    |---------> handler1:          trap (struct Trapframe *tf)
+>   |                |             // do stuff      {
+>   |                |             call trap          // handle the exception/interrupt
+>   |                |             // ...           }
+>   +----------------+
+>   |   &handler2    |--------> handler2:
+>   |                |            // do stuff
+>   |                |            call trap
+>   |                |            // ...
+>   +----------------+
+>          .
+>          .
+>          .
+>   +----------------+
+>   |   &handlerX    |--------> handlerX:
+>   |                |             // do stuff
+>   |                |             call trap
+>   |                |             // ...
+>   +----------------+
+>   ```
+
+
+### Page Faults, Breakpoints Exceptions, and System Calls
+
+The assembly code in `trapentry.S` will call `trap` in `kern/trap.c`. Steps are:
+
+1. Clear DF (direction flag)
+2. Halt the CPU if some other CPU has called panic()
+3. Re-acquire the big kernel lock if we were halted in `sched_yield`
+4. Check that interrupts are disabled
+5. If trapped from user mode 
+    1. Acquire the big kernel lock
+    2. Garbage collect if current environment is a zombie
+    3. Copy trap frame (which is currently on the stack) into `curenv->env_tf`, so that running the environment will restart at the trap point and the trapframe on the stack should be ignored from here on
+6. Dispatch based on what type of trap occurred using `trap_dispatch`
+7. If we mode it to this point, then no other environment was scheduled, so we should return to the current environment if doing so makes sense.
+    ```c
+	if (curenv && curenv->env_status == ENV_RUNNING)
+		env_run(curenv);
+	else
+		sched_yield();
+    ```
+
+The steps for `trap_dispatch`:
+
+1. Decide what to do based on the trap number from `tf->tf_trapno`:
+    1. If `T_PGFLT` (page fault), call `page_fault_handler`
+    2. If `T_BRKPT` (break point exception), call `monitor` to enter the jos kernel monitor.
+    3. If `T_SYSCALL` (system call), use `tf_regs`'s six register as argument to call `syscall`, the return value is stored in `tf->tf_regs.reg_eax`.
+    4. If `IRQ_OFFSET+IRQ_SPURIOUS`, handle the spurious interrupts (lab4)
+    5. If `IRQ_OFFSET+IRQ_TIMER`, handle clock interrupts. Only call `time_tick` on one cpu. Then use `lapic_eoi` to acknowledge the interrupt and call `sched_yield`. (lab4 preemptive multi-tasking)
+    6. If `IRQ_OFFSET+IRQ_KBD`, call `kbd_intr` to handle keyboard interrupts (lab5 shell)
+    7. If `IRQ_OFFSET+IRQ_SERIAL`, call `serial_intr` to handle serial interrupts (lab5 shell)
+2. If none of above matches, this is unexpected trap: the user process or the kernel has a bug. Print the trapframe and exit. 
+
+For page fault handler `page_fault_handler`:
+
+1. Read processor's CR2 register to find the faulting address `fault_va = rcr2();`
+2. Handle kernel-mode page faults: should panic `panic("page fault in kernel mode\n")`
+3. Reach here means that it is user mode page fault. 
+    1. Call the environment's page fault upcall, if it exists. Details:
+        1. Set up a page fault stack frame on the user exception stack (below UXSTACKTOP), then branch to `curenv->env_pgfault_upcall`. `struct UTrapframe` looks like:
+        ```c
+        struct UTrapframe {
+        	/* information about the fault */
+        	uint32_t utf_fault_va;	/* va for T_PGFLT, 0 otherwise */
+        	uint32_t utf_err;
+        	/* trap-time return state */
+        	struct PushRegs utf_regs;
+        	uintptr_t utf_eip;
+        	uint32_t utf_eflags;
+        	/* the trap-time stack to return to */
+        	uintptr_t utf_esp;
+        } __attribute__((packed));
+        ```
+        If this is the first time enter the page fault (another situation is nested page fault), just save old `esp` and set new `esp` to user exception stack. If this is the page fault occurred during the handling of another page fault (i.e. the `esp` has already pointed to the user exception stack), then an extra word should be leaved between the current top of the exception stack and the new stack frame because the exception stack _is_ the trap-time stack. 
+        2. Save `fault_va, tf_regs, tf_eflags, tf_eip, tf_err` to the user trap frame. 
+        3. Set `tf->tf_eip` to the `curenv->env_pgfault_upcall`. Rerun current environment, then the environment will start to run from the page fault handler registered earlier. 
+        ```c
+	    struct UTrapframe *p;
+    
+	    if (tf->tf_esp >= UXSTACKTOP-PGSIZE && tf->tf_esp < UXSTACKTOP) {
+	    	// esp is already on the user exception stack 
+	    	user_mem_assert(curenv, (void *)(tf->tf_esp-4-sizeof(struct UTrapframe)), sizeof(struct UTrapframe)+4, PTE_W);
+	    	tf->tf_esp -= 4;      // push 4 bytes
+	    	*((int32_t *)tf->tf_esp) = 0;
+	    	tf->tf_esp -= sizeof(struct UTrapframe);
+	    	p = (struct UTrapframe *)tf->tf_esp;
+	    	p->utf_esp = tf->tf_esp+sizeof(struct UTrapframe)+4;
+	    }
+	    else {
+	    	p = (struct UTrapframe *)(UXSTACKTOP-sizeof(struct UTrapframe));
+	    	user_mem_assert(curenv, (void *)p, sizeof(struct UTrapframe), PTE_W);
+	    	p->utf_esp = tf->tf_esp;
+	    	tf->tf_esp = (uintptr_t)p;
+	    }
+	    p->utf_fault_va = fault_va;
+	    p->utf_regs = tf->tf_regs;
+	    p->utf_eflags = tf->tf_eflags;
+	    p->utf_eip = tf->tf_eip;
+	    p->utf_err = tf->tf_err;
+    
+	    tf->tf_eip = (uintptr_t)(curenv->env_pgfault_upcall);
+	    env_run(curenv);
+        ```
+    2. If upcall doesn't exist, destroy the environment.
+
+
+For system calls `T_SYSCALL`:
+
+```c
+	case T_SYSCALL:
+		saved_syscall_num = tf->tf_regs.reg_eax;
+		// cprintf("before syscall num: %d\n", saved_syscall_num);
+		r = syscall(tf->tf_regs.reg_eax, 
+							tf->tf_regs.reg_edx,
+							tf->tf_regs.reg_ecx,
+							tf->tf_regs.reg_ebx,
+							tf->tf_regs.reg_edi,
+							tf->tf_regs.reg_esi);
+		// cprintf("syscall num: %d, errno: %d\n", saved_syscall_num, r);
+		// if (r < 0)
+		//	panic("syscall: %e\n", r);
+		// curenv->env_tf.tf_regs.reg_eax = r;
+		tf->tf_regs.reg_eax = r;
+		return;
+``` 
+
+inside `syscall` function in `kern/syscall.c`, it will dispatch the syscall according to its system call number:
+
+```c
+int32_t
+syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
+{
+	// Call the function corresponding to the 'syscallno' parameter.
+	// Return any appropriate return value.
+	// LAB 3: Your code here.
+
+	// panic("syscall not implemented");
+
+	switch (syscallno) {
+	case SYS_cputs:
+    //...
+```
+
+User interface for system call in inside `lib/syscall.c`:
+
+```c
+void
+sys_cputs(const char *s, size_t len)
+{
+	syscall(SYS_cputs, 0, (uint32_t)s, len, 0, 0, 0);
+}
+// ... 
+```
+
+
+```c
+static inline int32_t
+syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
+{
+	int32_t ret;
+
+	// Generic system call: pass system call number in AX,
+	// up to five parameters in DX, CX, BX, DI, SI.
+	// Interrupt kernel with T_SYSCALL.
+	//
+	// The "volatile" tells the assembler not to optimize
+	// this instruction away just because we don't use the
+	// return value.
+	//
+	// The last clause tells the assembler that this can
+	// potentially change the condition codes and arbitrary
+	// memory locations.
+
+	asm volatile("int %1\n"
+		     : "=a" (ret)
+		     : "i" (T_SYSCALL),
+		       "a" (num),
+		       "d" (a1),
+		       "c" (a2),
+		       "b" (a3),
+		       "D" (a4),
+		       "S" (a5)
+		     : "cc", "memory");
+
+	if(check && ret > 0)
+		panic("syscall %d returned %d (> 0)", num, ret);
+
+	return ret;
+}
+```
+
+
 
